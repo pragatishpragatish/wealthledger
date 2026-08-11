@@ -597,9 +597,11 @@ BEGIN
     (NEW.id, 'Rental', 'income', 'home', '#7C3AED', TRUE, 4),
     (NEW.id, 'Interest', 'income', 'percent', '#CA8A04', TRUE, 5),
     (NEW.id, 'Dividend', 'income', 'pie-chart', '#16A34A', TRUE, 6),
-    (NEW.id, 'Cashback', 'income', 'gift', '#DB2777', TRUE, 7),
-    (NEW.id, 'Gifts', 'income', 'heart', '#E11D48', TRUE, 8),
-    (NEW.id, 'Others', 'income', 'ellipsis', '#64748B', TRUE, 9);
+    (NEW.id, 'Trading Returns', 'income', 'candlestick-chart', '#EA580C', TRUE, 7),
+    (NEW.id, 'Stock Returns', 'income', 'trending-up', '#0D9488', TRUE, 8),
+    (NEW.id, 'Cashback', 'income', 'gift', '#DB2777', TRUE, 9),
+    (NEW.id, 'Gifts', 'income', 'heart', '#E11D48', TRUE, 10),
+    (NEW.id, 'Others', 'income', 'ellipsis', '#64748B', TRUE, 11);
 
   -- Seed system expense categories
   INSERT INTO public.categories (user_id, name, kind, icon, color, is_system, sort_order) VALUES
@@ -607,17 +609,19 @@ BEGIN
     (NEW.id, 'Groceries', 'expense', 'shopping-cart', '#16A34A', TRUE, 2),
     (NEW.id, 'Fuel', 'expense', 'fuel', '#CA8A04', TRUE, 3),
     (NEW.id, 'Shopping', 'expense', 'shopping-bag', '#DB2777', TRUE, 4),
-    (NEW.id, 'Medical', 'expense', 'heart-pulse', '#DC2626', TRUE, 5),
-    (NEW.id, 'Travel', 'expense', 'plane', '#2563EB', TRUE, 6),
-    (NEW.id, 'Entertainment', 'expense', 'clapperboard', '#7C3AED', TRUE, 7),
-    (NEW.id, 'Utilities', 'expense', 'zap', '#0891B2', TRUE, 8),
-    (NEW.id, 'Education', 'expense', 'graduation-cap', '#4F46E5', TRUE, 9),
-    (NEW.id, 'Insurance', 'expense', 'shield', '#0F766E', TRUE, 10),
-    (NEW.id, 'EMI', 'expense', 'credit-card', '#B45309', TRUE, 11),
-    (NEW.id, 'Investment', 'expense', 'trending-up', '#15803D', TRUE, 12),
-    (NEW.id, 'Rent', 'expense', 'building', '#475569', TRUE, 13),
-    (NEW.id, 'Tax', 'expense', 'receipt', '#991B1B', TRUE, 14),
-    (NEW.id, 'Misc', 'expense', 'ellipsis', '#64748B', TRUE, 15);
+    (NEW.id, 'Subscriptions', 'expense', 'repeat', '#7C3AED', TRUE, 5),
+    (NEW.id, 'Gym', 'expense', 'dumbbell', '#DC2626', TRUE, 6),
+    (NEW.id, 'Medical', 'expense', 'heart-pulse', '#E11D48', TRUE, 7),
+    (NEW.id, 'Travel', 'expense', 'plane', '#2563EB', TRUE, 8),
+    (NEW.id, 'Entertainment', 'expense', 'clapperboard', '#9333EA', TRUE, 9),
+    (NEW.id, 'Utilities', 'expense', 'zap', '#0891B2', TRUE, 10),
+    (NEW.id, 'Education', 'expense', 'graduation-cap', '#4F46E5', TRUE, 11),
+    (NEW.id, 'Insurance', 'expense', 'shield', '#0F766E', TRUE, 12),
+    (NEW.id, 'EMI', 'expense', 'credit-card', '#B45309', TRUE, 13),
+    (NEW.id, 'Investment', 'expense', 'trending-up', '#15803D', TRUE, 14),
+    (NEW.id, 'Rent', 'expense', 'building', '#475569', TRUE, 15),
+    (NEW.id, 'Tax', 'expense', 'receipt', '#991B1B', TRUE, 16),
+    (NEW.id, 'Misc', 'expense', 'ellipsis', '#64748B', TRUE, 17);
 
   RETURN NEW;
 END;
