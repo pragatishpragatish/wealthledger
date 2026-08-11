@@ -7,32 +7,36 @@ import {
   calculateLumpsumGrowth,
   calculateSip,
 } from "@/lib/calculations/investment";
-import { CalcField, CalcStat } from "@/features/calculators/calc-ui";
+import {
+  CalcField,
+  CalcStat,
+  parseAmount,
+} from "@/features/calculators/calc-ui";
 
 /**
  * One tool for lumpsum-only, SIP-only, or both — with optional annual step-up on SIP.
- * Leave monthly SIP at 0 for pure lumpsum; leave lumpsum at 0 for pure SIP.
+ * Blank optional fields count as zero.
  */
 export function SipCalculator() {
-  const [lumpsum, setLumpsum] = useState(0);
-  const [monthly, setMonthly] = useState(5000);
-  const [stepUp, setStepUp] = useState(0);
-  const [rate, setRate] = useState(12);
-  const [years, setYears] = useState(10);
+  const [lumpsum, setLumpsum] = useState("");
+  const [monthly, setMonthly] = useState("5000");
+  const [stepUp, setStepUp] = useState("");
+  const [rate, setRate] = useState("12");
+  const [years, setYears] = useState("10");
+
+  const lump = parseAmount(lumpsum);
+  const sip = parseAmount(monthly);
+  const step = parseAmount(stepUp);
+  const rateN = parseAmount(rate);
+  const yearsN = parseAmount(years);
 
   const result = useMemo(() => {
-    const yearsSafe = Math.max(0, years);
-    const rateSafe = Math.max(0, rate);
-    const sip = Math.max(0, monthly);
-    const lump = Math.max(0, lumpsum);
-    const step = Math.max(0, stepUp);
-
     if (sip <= 0 && lump <= 0) {
       return {
         corpus: 0,
         invested: 0,
         gains: 0,
-        months: Math.round(yearsSafe * 12),
+        months: Math.round(yearsN * 12),
         finalMonthlySip: 0,
         mode: "empty" as const,
       };
@@ -41,14 +45,14 @@ export function SipCalculator() {
     if (sip <= 0) {
       const growth = calculateLumpsumGrowth({
         principal: lump,
-        annualRatePercent: rateSafe,
-        years: yearsSafe,
+        annualRatePercent: rateN,
+        years: yearsN,
       });
       return {
         corpus: growth.futureValue,
         invested: growth.invested,
         gains: growth.gains,
-        months: Math.round(yearsSafe * 12),
+        months: Math.round(yearsN * 12),
         finalMonthlySip: 0,
         mode: "lumpsum" as const,
       };
@@ -56,8 +60,8 @@ export function SipCalculator() {
 
     const sipResult = calculateSip({
       monthlyInvestment: sip,
-      annualRatePercent: rateSafe,
-      years: yearsSafe,
+      annualRatePercent: rateN,
+      years: yearsN,
       lumpsum: lump,
       stepUpPercent: step,
     });
@@ -66,7 +70,7 @@ export function SipCalculator() {
       ...sipResult,
       mode: (lump > 0 ? "both" : "sip") as "sip" | "both",
     };
-  }, [lumpsum, monthly, stepUp, rate, years]);
+  }, [lump, sip, step, rateN, yearsN]);
 
   const modeLabel =
     result.mode === "lumpsum"
@@ -80,51 +84,53 @@ export function SipCalculator() {
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        Use lumpsum alone, SIP alone, or both. Set monthly SIP to 0 for a
-        one-time investment; set lumpsum to 0 for SIP-only. Step-up applies
-        only when SIP &gt; 0.
+        Fill lumpsum, monthly SIP, or both. Leave a field blank to skip it.
+        Step-up only applies when a monthly SIP is entered.
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <CalcField
           label="Lumpsum (₹)"
-          hint="One-time amount at the start — use 0 if none"
+          hint="One-time amount at the start — leave blank if none"
         >
           <Input
             type="number"
             min={0}
             step={1000}
+            placeholder="e.g. 50000"
             value={lumpsum}
-            onChange={(e) => setLumpsum(Number(e.target.value) || 0)}
+            onChange={(e) => setLumpsum(e.target.value)}
           />
         </CalcField>
         <CalcField
           label="Monthly SIP (₹)"
-          hint="Recurring investment — use 0 for lumpsum only"
+          hint="Recurring investment — leave blank for lumpsum only"
         >
           <Input
             type="number"
             min={0}
             step={500}
+            placeholder="e.g. 5000"
             value={monthly}
-            onChange={(e) => setMonthly(Number(e.target.value) || 0)}
+            onChange={(e) => setMonthly(e.target.value)}
           />
         </CalcField>
         <CalcField
           label="SIP step-up % / year"
           hint={
-            monthly > 0
-              ? "Increase SIP after every 12 months — use 0 for none"
-              : "Enabled when monthly SIP is greater than 0"
+            sip > 0
+              ? "Increase SIP after every 12 months — leave blank for none"
+              : "Available once you enter a monthly SIP"
           }
         >
           <Input
             type="number"
             min={0}
             step={1}
+            placeholder="e.g. 10"
             value={stepUp}
-            disabled={monthly <= 0}
-            onChange={(e) => setStepUp(Number(e.target.value) || 0)}
+            disabled={sip <= 0}
+            onChange={(e) => setStepUp(e.target.value)}
           />
         </CalcField>
         <CalcField label="Expected return % p.a.">
@@ -132,8 +138,9 @@ export function SipCalculator() {
             type="number"
             min={0}
             step={0.1}
+            placeholder="e.g. 12"
             value={rate}
-            onChange={(e) => setRate(Number(e.target.value) || 0)}
+            onChange={(e) => setRate(e.target.value)}
           />
         </CalcField>
         <CalcField label="Tenure (years)">
@@ -141,8 +148,9 @@ export function SipCalculator() {
             type="number"
             min={0}
             step={1}
+            placeholder="e.g. 10"
             value={years}
-            onChange={(e) => setYears(Number(e.target.value) || 0)}
+            onChange={(e) => setYears(e.target.value)}
           />
         </CalcField>
       </div>
@@ -160,11 +168,9 @@ export function SipCalculator() {
           accent="positive"
         />
         <CalcStat
-          label={
-            monthly > 0 && stepUp > 0 ? "Final monthly SIP" : "Mode"
-          }
+          label={sip > 0 && step > 0 ? "Final monthly SIP" : "Mode"}
           value={
-            monthly > 0 && stepUp > 0
+            sip > 0 && step > 0
               ? formatINR(result.finalMonthlySip)
               : modeLabel
           }

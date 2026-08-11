@@ -3,6 +3,14 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
+/** Empty / invalid input → 0 for calculator math. */
+export function parseAmount(raw: string): number {
+  const trimmed = raw.trim();
+  if (trimmed === "") return 0;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? Math.max(0, n) : 0;
+}
+
 export function CalcField({
   label,
   hint,
