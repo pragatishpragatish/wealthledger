@@ -485,6 +485,10 @@ export function TransactionsView({
             onValueChange={(v) => {
               if (v) updateParams({ sort: v });
             }}
+            items={SORT_OPTIONS.map((s) => ({
+              value: s.value,
+              label: s.label,
+            }))}
           >
             <SelectTrigger className="w-full sm:w-56">
               <SelectValue placeholder="Sort" />
