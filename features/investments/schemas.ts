@@ -4,6 +4,7 @@ import {
   dateStringSchema,
   nonNegativeMoneySchema,
   optionalNullableString,
+  positiveMoneySchema,
 } from "@/lib/validations/common";
 
 const investmentTypeValues = INVESTMENT_TYPES.map((t) => t.value) as [
@@ -50,61 +51,32 @@ export const investmentSchema = z
       }),
     notes: optionalNullableString,
     is_active: z.boolean().default(true),
-    is_sip: z.boolean().default(false),
-    sip_amount: nonNegativeMoneySchema.default(0),
-    sip_day: z
-      .union([
-        z.coerce
-          .number({ invalid_type_error: "Enter SIP day" })
-          .int()
-          .min(1, "Day must be 1–28")
-          .max(28, "Day must be 1–28"),
-        z.literal(""),
-        z.null(),
-      ])
-      .optional()
-      .transform((v) => {
-        if (v === "" || v == null) return null;
-        return v;
-      }),
-    sip_frequency: z
-      .enum(["monthly", "weekly", "quarterly"])
-      .nullable()
-      .optional()
-      .transform((v) => v ?? "monthly"),
-    sip_start_date: optionalDate,
   })
   .superRefine((data, ctx) => {
-    if (data.is_sip) {
-      if (data.sip_amount <= 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Enter monthly SIP amount",
-          path: ["sip_amount"],
-        });
-      }
-      if (!data.sip_day) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Pick SIP debit day (1–28)",
-          path: ["sip_day"],
-        });
-      }
-    }
-
     const amounts = resolveInvestmentAmounts(data);
     if (amounts.invested_amount <= 0 && amounts.current_value <= 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: data.is_sip
-          ? "Enter total invested so far or current value"
-          : "Enter invested amount, current value, or units with prices",
+        message: "Enter invested amount, current value, or units with prices",
         path: ["invested_amount"],
       });
     }
   });
 
 export type InvestmentFormValues = z.infer<typeof investmentSchema>;
+
+export const contributionSchema = z.object({
+  date: dateStringSchema,
+  amount: positiveMoneySchema,
+  units: z.coerce
+    .number({ invalid_type_error: "Enter valid units" })
+    .min(0, "Units cannot be negative")
+    .default(0),
+  price: nonNegativeMoneySchema.default(0),
+  notes: optionalNullableString,
+});
+
+export type ContributionFormValues = z.infer<typeof contributionSchema>;
 
 /** Derive amounts from units/prices when provided. */
 export function resolveInvestmentAmounts(
@@ -115,8 +87,6 @@ export function resolveInvestmentAmounts(
     | "current_price"
     | "invested_amount"
     | "current_value"
-    | "is_sip"
-    | "sip_amount"
   >
 ) {
   let invested_amount = Number(values.invested_amount) || 0;
@@ -132,17 +102,6 @@ export function resolveInvestmentAmounts(
     current_value = Math.round(units * current_price * 100) / 100;
   }
 
-  // SIP with only SIP amount filled — seed invested if still empty
-  if (
-    values.is_sip &&
-    invested_amount <= 0 &&
-    Number(values.sip_amount) > 0 &&
-    current_value <= 0
-  ) {
-    invested_amount = Number(values.sip_amount);
-  }
-
-  // If only current value set for SIP, keep invested as entered
   if (current_value <= 0 && invested_amount > 0) {
     current_value = invested_amount;
   }

@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -72,11 +71,6 @@ function defaults(
       interest_rate: investment.interest_rate,
       notes: investment.notes,
       is_active: investment.is_active,
-      is_sip: investment.is_sip ?? false,
-      sip_amount: investment.sip_amount ?? 0,
-      sip_day: investment.sip_day,
-      sip_frequency: investment.sip_frequency ?? "monthly",
-      sip_start_date: investment.sip_start_date,
     };
   }
   return {
@@ -93,11 +87,6 @@ function defaults(
     interest_rate: null,
     notes: null,
     is_active: true,
-    is_sip: true,
-    sip_amount: 0,
-    sip_day: 5,
-    sip_frequency: "monthly",
-    sip_start_date: toDateString(new Date()),
   };
 }
 
@@ -119,13 +108,11 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
   });
 
   const type = form.watch("type") as InvestmentType;
-  const isSip = form.watch("is_sip");
   const units = Number(form.watch("units") ?? 0);
   const buyPrice = Number(form.watch("buy_price") ?? 0);
   const currentPrice = Number(form.watch("current_price") ?? 0);
   const invested = Number(form.watch("invested_amount") ?? 0);
   const currentValue = Number(form.watch("current_value") ?? 0);
-  const sipAmount = Number(form.watch("sip_amount") ?? 0);
   const platform = form.watch("platform");
 
   const preview = resolveInvestmentAmounts({
@@ -134,8 +121,6 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
     current_price: currentPrice,
     invested_amount: invested,
     current_value: currentValue,
-    is_sip: Boolean(isSip),
-    sip_amount: sipAmount,
   });
 
   const showUnits =
@@ -158,7 +143,6 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
     if (open) form.reset(defaults(investment));
   }, [open, investment, form]);
 
-  // Auto-fill derived amounts while typing units/prices
   useEffect(() => {
     if (units > 0 && buyPrice > 0) {
       form.setValue(
@@ -183,25 +167,9 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
     const preset = INVESTMENT_ENTRY_PRESETS.find((p) => p.id === presetId);
     if (!preset) return;
     form.setValue("type", preset.type);
-    form.setValue("is_sip", preset.is_sip);
-    if (preset.is_sip) {
-      form.setValue("sip_day", form.getValues("sip_day") || 5);
-      form.setValue("sip_frequency", "monthly");
-      form.setValue(
-        "sip_start_date",
-        form.getValues("sip_start_date") || toDateString(new Date())
-      );
-      form.setValue("type", "mutual_funds");
-    }
-    if (preset.id === "fd") {
-      form.setValue("type", "fd");
-    }
-    if (preset.id === "retirement") {
-      form.setValue("type", "ppf");
-    }
-    if (preset.id === "gold") {
-      form.setValue("type", "gold");
-    }
+    if (preset.id === "fd") form.setValue("type", "fd");
+    if (preset.id === "retirement") form.setValue("type", "ppf");
+    if (preset.id === "gold") form.setValue("type", "gold");
   }
 
   function onSubmit(values: InvestmentFormValues) {
@@ -229,36 +197,29 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
             {isEdit ? "Edit investment" : "Add investment"}
           </DialogTitle>
           <DialogDescription>
-            Pick a type below — only the fields you need will show. SIP for
-            mutual funds is one tap away.
+            Create a holding once, then use “Add money” anytime to log more
+            purchases with their dates.
           </DialogDescription>
         </DialogHeader>
 
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="grid max-h-[75vh] gap-4 overflow-y-auto py-1"
-         autoComplete="off"
-         >
+          autoComplete="off"
+        >
           {!isEdit && (
             <div className="space-y-2">
               <Label>What are you adding?</Label>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {INVESTMENT_ENTRY_PRESETS.map((p) => {
-                  const selected =
-                    (p.is_sip && isSip && type === "mutual_funds") ||
-                    (!p.is_sip &&
-                      !isSip &&
-                      ((p.id === "mf_lumpsum" && type === "mutual_funds") ||
-                        (p.id === "fd" && (type === "fd" || type === "rd")) ||
-                        (p.id === "retirement" &&
-                          ["ppf", "epf", "nps"].includes(type)) ||
-                        (p.id === "gold" &&
-                          (type === "gold" || type === "silver")) ||
-                        (p.id !== "mf_lumpsum" &&
-                          p.id !== "fd" &&
-                          p.id !== "retirement" &&
-                          p.id !== "gold" &&
-                          p.type === type)));
+                  const selected = type === p.type ||
+                    (p.id === "retirement" &&
+                      ["ppf", "epf", "nps"].includes(type)) ||
+                    (p.id === "fd" && (type === "fd" || type === "rd")) ||
+                    (p.id === "gold" &&
+                      (type === "gold" || type === "silver")) ||
+                    (p.id === "other" &&
+                      (type === "bonds" || type === "real_estate"));
                   return (
                     <button
                       key={p.id}
@@ -267,7 +228,7 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
                       className={cn(
                         "rounded-xl border px-3 py-2.5 text-left transition-colors",
                         selected
-                          ? "border-teal-600/50 bg-teal-500/10 ring-1 ring-teal-600/30"
+                          ? "border-teal-600/40 bg-teal-500/10"
                           : "border-border/60 hover:bg-muted/50"
                       )}
                     >
@@ -282,63 +243,64 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="inv-name">
-              {isSip ? "Fund name" : "Name"}
-            </Label>
-            <Input
-              id="inv-name"
-              placeholder={
-                isSip
-                  ? "e.g. Parag Parikh Flexi Cap"
-                  : "e.g. Reliance, HDFC FD, Digital Gold"
-              }
-              {...form.register("name")}
-              aria-invalid={!!form.formState.errors.name}
-            />
-            {form.formState.errors.name && (
-              <p className="text-xs text-destructive">
-                {form.formState.errors.name.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Platform</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {INVESTMENT_PLATFORMS.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() =>
-                    form.setValue("platform", p === "Other" ? "" : p)
-                  }
-                  className={cn(
-                    "rounded-full border px-2.5 py-1 text-xs transition-colors",
-                    platform === p || (p === "Other" && !platform)
-                      ? "border-teal-600/40 bg-teal-500/10 text-foreground"
-                      : "border-border/60 text-muted-foreground hover:bg-muted/60"
-                  )}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-            {(platform == null ||
-              platform === "" ||
-              platform === "Other" ||
-              !(INVESTMENT_PLATFORMS as readonly string[]).includes(
-                platform
-              )) && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="inv-name">Name</Label>
               <Input
-                placeholder="Platform name"
-                {...form.register("platform")}
+                id="inv-name"
+                placeholder="e.g. Parag Parikh Flexi Cap"
+                {...form.register("name")}
+                aria-invalid={!!form.formState.errors.name}
               />
-            )}
-          </div>
+              {form.formState.errors.name && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.name.message}
+                </p>
+              )}
+            </div>
 
-          {isEdit && (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Platform</Label>
+              <Controller
+                control={form.control}
+                name="platform"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? ""}
+                    onValueChange={(v) => field.onChange(v || null)}
+                    items={Object.fromEntries(
+                      INVESTMENT_PLATFORMS.map((p) => [p, p])
+                    )}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select platform" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INVESTMENT_PLATFORMS.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {platform === "Other" && (
+                <Input
+                  placeholder="Platform name"
+                  value={
+                    INVESTMENT_PLATFORMS.includes(
+                      platform as (typeof INVESTMENT_PLATFORMS)[number]
+                    )
+                      ? ""
+                      : (platform ?? "")
+                  }
+                  onChange={(e) => form.setValue("platform", e.target.value)}
+                />
+              )}
+            </div>
+
+            {isEdit && (
               <div className="space-y-2">
                 <Label>Type</Label>
                 <Controller
@@ -368,136 +330,23 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
                   )}
                 />
               </div>
-              {(type === "mutual_funds" || isSip) && (
-                <div className="flex items-end pb-1">
-                  <div className="flex items-center gap-2">
-                    <Controller
-                      control={form.control}
-                      name="is_sip"
-                      render={({ field }) => (
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={(c) => {
-                            field.onChange(c === true);
-                            if (c === true) {
-                              form.setValue("type", "mutual_funds");
-                              form.setValue("sip_day", form.getValues("sip_day") || 5);
-                            }
-                          }}
-                          id="inv-is-sip"
-                        />
-                      )}
-                    />
-                    <Label htmlFor="inv-is-sip" className="font-normal">
-                      This is an SIP
-                    </Label>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
-          {isSip && (
-            <div className="space-y-3 rounded-2xl border border-teal-600/20 bg-teal-500/5 p-4">
-              <p className="text-sm font-medium text-teal-800 dark:text-teal-300">
-                SIP details
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="sip-amount">Monthly SIP (₹)</Label>
-                  <Input
-                    id="sip-amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="e.g. 5000"
-                    {...form.register("sip_amount")}
-                    aria-invalid={!!form.formState.errors.sip_amount}
-                  />
-                  {form.formState.errors.sip_amount && (
-                    <p className="text-xs text-destructive">
-                      {form.formState.errors.sip_amount.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sip-day">Debit day</Label>
-                  <Input
-                    id="sip-day"
-                    type="number"
-                    min={1}
-                    max={28}
-                    placeholder="1–28"
-                    {...form.register("sip_day")}
-                    aria-invalid={!!form.formState.errors.sip_day}
-                  />
-                  <FieldHint>Bank debit date each month</FieldHint>
-                  {form.formState.errors.sip_day && (
-                    <p className="text-xs text-destructive">
-                      {form.formState.errors.sip_day.message}
-                    </p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sip-start">SIP start date</Label>
-                  <Input
-                    id="sip-start"
-                    type="date"
-                    {...form.register("sip_start_date")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Frequency</Label>
-                  <Controller
-                    control={form.control}
-                    name="sip_frequency"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value ?? "monthly"}
-                        onValueChange={(v) => {
-                          if (v != null) field.onChange(v);
-                        }}
-                        items={{
-                          monthly: "Monthly",
-                          weekly: "Weekly",
-                          quarterly: "Quarterly",
-                        }}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="monthly">Monthly</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                          <SelectItem value="quarterly">Quarterly</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Simple money fields — what people actually know */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="inv-invested">
-                {isSip ? "Total invested so far (₹)" : "Invested amount (₹)"}
-              </Label>
+              <Label htmlFor="inv-invested">Invested amount (₹)</Label>
               <Input
                 id="inv-invested"
                 type="number"
                 step="0.01"
                 min="0"
-                placeholder={isSip ? "From your app statement" : "e.g. 50000"}
+                placeholder="e.g. 1000"
                 {...form.register("invested_amount")}
                 aria-invalid={!!form.formState.errors.invested_amount}
               />
               <FieldHint>
-                {isSip
-                  ? "Sum of all SIP installments to date"
-                  : "Total money you put in"}
+                First purchase now — add more later with “Add money”
               </FieldHint>
               {form.formState.errors.invested_amount && (
                 <p className="text-xs text-destructive">
@@ -512,7 +361,7 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
                 type="number"
                 step="0.01"
                 min="0"
-                placeholder="Today’s portfolio value"
+                placeholder="Today’s value"
                 {...form.register("current_value")}
               />
               <FieldHint>Leave blank to match invested for now</FieldHint>
@@ -560,26 +409,20 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
                   />
                 </div>
               </div>
-              <FieldHint>
-                Filling units + prices auto-calculates invested &amp; current
-                value above.
-              </FieldHint>
             </details>
           )}
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {!isSip && (
-              <div className="space-y-2">
-                <Label htmlFor="inv-purchase">
-                  {showMaturity ? "Start date" : "Purchase date"}
-                </Label>
-                <Input
-                  id="inv-purchase"
-                  type="date"
-                  {...form.register("purchase_date")}
-                />
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="inv-purchase">
+                {showMaturity ? "Start date" : "Purchase date"}
+              </Label>
+              <Input
+                id="inv-purchase"
+                type="date"
+                {...form.register("purchase_date")}
+              />
+            </div>
             {showMaturity && (
               <div className="space-y-2">
                 <Label htmlFor="inv-maturity">Maturity date</Label>
@@ -603,7 +446,7 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
                 />
               </div>
             )}
-            {(type === "ppf" || type === "epf" || type === "nps") && isEdit && (
+            {(type === "ppf" || type === "epf" || type === "nps") && (
               <div className="space-y-2">
                 <Label>Sub-type</Label>
                 <Controller
@@ -615,11 +458,7 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
                       onValueChange={(v) => {
                         if (v != null) field.onChange(v);
                       }}
-                      items={{
-                        ppf: "PPF",
-                        epf: "EPF",
-                        nps: "NPS",
-                      }}
+                      items={{ ppf: "PPF", epf: "EPF", nps: "NPS" }}
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />
@@ -702,9 +541,6 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
             <p className="mt-0.5 text-muted-foreground">
               Value {formatINR(preview.current_value)} · Cost{" "}
               {formatINR(preview.invested_amount)}
-              {isSip && sipAmount > 0
-                ? ` · SIP ${formatINR(sipAmount)}/mo`
-                : ""}
             </p>
           </div>
 
@@ -729,7 +565,7 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
             </Button>
             <Button type="submit" disabled={pending}>
               {pending && <Loader2 className="size-4 animate-spin" />}
-              {isEdit ? "Save changes" : isSip ? "Add SIP" : "Add investment"}
+              {isEdit ? "Save changes" : "Add investment"}
             </Button>
           </DialogFooter>
         </form>

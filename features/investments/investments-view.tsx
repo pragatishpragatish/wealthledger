@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import {
+  History,
   LineChart,
   MoreHorizontal,
   Pencil,
@@ -30,6 +31,8 @@ import { INVESTMENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { deleteInvestment } from "@/features/investments/actions";
 import { InvestmentForm } from "@/features/investments/investment-form";
+import { ContributionForm } from "@/features/investments/contribution-form";
+import { ContributionHistoryDialog } from "@/features/investments/contribution-history-dialog";
 import type {
   InvestmentComputed,
   InvestmentsPageData,
@@ -43,6 +46,10 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
   const { investments, summary } = data;
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<InvestmentComputed | null>(null);
+  const [contributing, setContributing] = useState<InvestmentComputed | null>(
+    null
+  );
+  const [historyFor, setHistoryFor] = useState<InvestmentComputed | null>(null);
   const [deleting, setDeleting] = useState<InvestmentComputed | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -73,7 +80,7 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
     <div className="space-y-6">
       <PageHeader
         title="Investments"
-        description="Add an MF SIP in seconds, or track stocks, FDs, gold and more."
+        description="Track holdings and log each top-up with its date — same fund, many entries."
         action={
           <Button onClick={openCreate}>
             <Plus className="size-4" />
@@ -128,7 +135,9 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
                     <p className="truncate font-medium">{inv.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {typeLabel[inv.type] ?? inv.type}
-                      {inv.is_sip ? " · SIP" : ""}
+                      {inv.contribution_count > 0
+                        ? ` · ${inv.contribution_count} entries`
+                        : ""}
                       {inv.platform ? ` · ${inv.platform}` : ""}
                     </p>
                   </div>
@@ -158,7 +167,7 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
         <EmptyState
           icon={LineChart}
           title="No investments yet"
-          description="Add stocks, mutual funds, FDs or gold to track your portfolio."
+          description="Add a fund once, then top it up anytime with dated entries."
           action={
             <Button onClick={openCreate}>
               <Plus className="size-4" />
@@ -182,97 +191,112 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
                 </tr>
               </thead>
               <tbody>
-                {investments.map((inv, i) => (
-                  <tr
-                    key={inv.id}
-                    className="border-b border-border/40 last:border-0"
-                  >
-                    <td className="px-4 py-3">
-                      <p className="font-medium">{inv.name}</p>
-                      {inv.platform && (
-                        <p className="text-xs text-muted-foreground">
-                          {inv.platform}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        <Badge variant="secondary">
-                          {typeLabel[inv.type] ?? inv.type}
-                        </Badge>
-                        {inv.is_sip && (
-                          <Badge className="bg-teal-600/15 text-teal-800 dark:text-teal-300">
-                            SIP
-                            {inv.sip_amount > 0
-                              ? ` · ${formatINR(inv.sip_amount)}`
-                              : ""}
-                          </Badge>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {formatINR(inv.invested_amount)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium">
-                      {formatINR(inv.current_value)}
-                    </td>
-                    <td
-                      className={cn(
-                        "px-4 py-3 text-right tabular-nums",
-                        inv.gain >= 0
-                          ? "text-emerald-700 dark:text-emerald-400"
-                          : "text-rose-600 dark:text-rose-400"
-                      )}
+                {investments.map((inv) => {
+                  const latest = inv.contributions[0];
+                  return (
+                    <tr
+                      key={inv.id}
+                      className="border-b border-border/40 last:border-0"
                     >
-                      <div>{formatSignedINR(inv.gain)}</div>
-                      <div className="text-xs">
-                        {formatPercent(inv.gain_percent)}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
-                      {inv.is_sip && inv.sip_amount > 0 && (
-                        <div>
-                          SIP {formatINR(inv.sip_amount)}
-                          {inv.sip_day ? ` · day ${inv.sip_day}` : ""}
+                      <td className="px-4 py-3">
+                        <p className="font-medium">{inv.name}</p>
+                        {inv.platform && (
+                          <p className="text-xs text-muted-foreground">
+                            {inv.platform}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="secondary">
+                            {typeLabel[inv.type] ?? inv.type}
+                          </Badge>
+                          {inv.contribution_count > 1 && (
+                            <Badge className="bg-teal-600/15 text-teal-800 dark:text-teal-300">
+                              {inv.contribution_count} entries
+                            </Badge>
+                          )}
                         </div>
-                      )}
-                      {inv.units > 0 && (
-                        <div>
-                          {inv.units} × {formatINR(inv.current_price, { precise: true })}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {formatINR(inv.invested_amount)}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums font-medium">
+                        {formatINR(inv.current_value)}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-4 py-3 text-right tabular-nums",
+                          inv.gain >= 0
+                            ? "text-emerald-700 dark:text-emerald-400"
+                            : "text-rose-600 dark:text-rose-400"
+                        )}
+                      >
+                        <div>{formatSignedINR(inv.gain)}</div>
+                        <div className="text-xs">
+                          {formatPercent(inv.gain_percent)}
                         </div>
-                      )}
-                      {inv.maturity_date && (
-                        <div>Matures {formatDisplayDate(inv.maturity_date)}</div>
-                      )}
-                      {inv.interest_rate != null && (
-                        <div>{formatPercent(inv.interest_rate)} p.a.</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger
-                          render={<Button variant="ghost" size="icon-sm" />}
-                        >
-                          <MoreHorizontal className="size-4" />
-                          <span className="sr-only">Actions</span>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEdit(inv)}>
-                            <Pencil className="size-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => setDeleting(inv)}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {latest && (
+                          <div>
+                            Last +{formatINR(latest.amount)} ·{" "}
+                            {formatDisplayDate(latest.date)}
+                          </div>
+                        )}
+                        {inv.units > 0 && (
+                          <div>
+                            {inv.units} ×{" "}
+                            {formatINR(inv.current_price, { precise: true })}
+                          </div>
+                        )}
+                        {inv.maturity_date && (
+                          <div>
+                            Matures {formatDisplayDate(inv.maturity_date)}
+                          </div>
+                        )}
+                        {inv.interest_rate != null && (
+                          <div>{formatPercent(inv.interest_rate)} p.a.</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={<Button variant="ghost" size="icon-sm" />}
                           >
-                            <Trash2 className="size-4" />
-                            Remove
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
-                  </tr>
-                ))}
+                            <MoreHorizontal className="size-4" />
+                            <span className="sr-only">Actions</span>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => setContributing(inv)}
+                            >
+                              <Plus className="size-4" />
+                              Add money
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setHistoryFor(inv)}
+                            >
+                              <History className="size-4" />
+                              View entries
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openEdit(inv)}>
+                              <Pencil className="size-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => setDeleting(inv)}
+                            >
+                              <Trash2 className="size-4" />
+                              Remove
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -285,6 +309,22 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
         investment={editing}
       />
 
+      <ContributionForm
+        open={Boolean(contributing)}
+        onOpenChange={(open) => {
+          if (!open) setContributing(null);
+        }}
+        investment={contributing}
+      />
+
+      <ContributionHistoryDialog
+        open={Boolean(historyFor)}
+        onOpenChange={(open) => {
+          if (!open) setHistoryFor(null);
+        }}
+        investment={historyFor}
+      />
+
       <ConfirmDeleteDialog
         open={Boolean(deleting)}
         onOpenChange={(open) => {
@@ -292,9 +332,7 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
         }}
         title="Remove investment?"
         description={
-          deleting
-            ? `"${deleting.name}" will be deactivated.`
-            : undefined
+          deleting ? `"${deleting.name}" will be deactivated.` : undefined
         }
         confirmLabel="Remove"
         pending={pending}

@@ -59,67 +59,52 @@ export const INVESTMENT_TYPES = [
 /** Quick-start presets for the Add Investment form */
 export const INVESTMENT_ENTRY_PRESETS = [
   {
-    id: "mf_sip",
-    label: "MF SIP",
-    description: "Monthly mutual fund SIP",
+    id: "mutual_funds",
+    label: "Mutual fund",
+    description: "Add now, top up later with dated entries",
     type: "mutual_funds" as const,
-    is_sip: true,
-  },
-  {
-    id: "mf_lumpsum",
-    label: "MF Lumpsum",
-    description: "One-time mutual fund buy",
-    type: "mutual_funds" as const,
-    is_sip: false,
   },
   {
     id: "stocks",
     label: "Stocks",
     description: "Shares & equity",
     type: "stocks" as const,
-    is_sip: false,
   },
   {
     id: "etf",
     label: "ETF",
     description: "Index / sector ETFs",
     type: "etf" as const,
-    is_sip: false,
   },
   {
     id: "fd",
     label: "FD / RD",
     description: "Fixed or recurring deposit",
     type: "fd" as const,
-    is_sip: false,
   },
   {
     id: "retirement",
     label: "PPF / EPF / NPS",
     description: "Retirement accounts",
     type: "ppf" as const,
-    is_sip: false,
   },
   {
     id: "gold",
     label: "Gold / Silver",
     description: "Bullion or digital metal",
     type: "gold" as const,
-    is_sip: false,
   },
   {
     id: "crypto",
     label: "Crypto",
     description: "Coins & tokens",
     type: "crypto" as const,
-    is_sip: false,
   },
   {
     id: "other",
     label: "Other",
     description: "Bonds, property, etc.",
     type: "bonds" as const,
-    is_sip: false,
   },
 ] as const;
 

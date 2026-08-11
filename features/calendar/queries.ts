@@ -14,7 +14,6 @@ export type CalendarEventType =
   | "credit_card"
   | "emi"
   | "maturity"
-  | "sip"
   | "goal"
   | "income";
 
@@ -60,7 +59,7 @@ export async function getCalendarPageData(opts?: {
   const horizonEnd = endOfMonth(addMonths(now, HORIZON_MONTHS));
   const todayStr = toDateString(now);
 
-  const [cardsRes, loansRes, invRes, sipRes, goalsRes, incomeRes] =
+  const [cardsRes, loansRes, invRes, goalsRes, incomeRes] =
     await Promise.all([
     supabase
       .from("credit_cards")
@@ -83,14 +82,6 @@ export async function getCalendarPageData(opts?: {
       .lte("maturity_date", toDateString(horizonEnd))
       .gte("maturity_date", todayStr),
     supabase
-      .from("investments")
-      .select(
-        "id, name, sip_amount, sip_day, is_sip, is_active, platform"
-      )
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .eq("is_sip", true),
-    supabase
       .from("goals")
       .select("id, name, target_amount, target_date, is_completed")
       .eq("user_id", user.id)
@@ -111,15 +102,6 @@ export async function getCalendarPageData(opts?: {
   if (cardsRes.error) throw new Error(cardsRes.error.message);
   if (loansRes.error) throw new Error(loansRes.error.message);
   if (invRes.error) throw new Error(invRes.error.message);
-  // SIP columns may be missing until migration 003
-  const sipInvestments =
-    sipRes.error?.message?.includes("is_sip") ||
-    sipRes.error?.message?.includes("sip_")
-      ? []
-      : (sipRes.data ?? []);
-  if (sipRes.error && sipInvestments.length === 0 && !sipRes.error.message.includes("is_sip") && !sipRes.error.message.includes("sip_")) {
-    throw new Error(sipRes.error.message);
-  }
   if (goalsRes.error) throw new Error(goalsRes.error.message);
   if (incomeRes.error) throw new Error(incomeRes.error.message);
 
@@ -212,25 +194,6 @@ export async function getCalendarPageData(opts?: {
       date: inv.maturity_date,
       href: "/investments",
     });
-  }
-
-  for (const sip of sipInvestments) {
-    const sipDay = Math.min(Number(sip.sip_day) || 5, 28);
-    for (let i = 0; i < HORIZON_MONTHS + 1; i++) {
-      const base = addMonths(new Date(year, month - 1, 1), i);
-      const due = new Date(base.getFullYear(), base.getMonth(), sipDay);
-      if (due < now && toDateString(due) !== todayStr) continue;
-      if (due > horizonEnd) continue;
-      events.push({
-        id: `sip-${sip.id}-${toDateString(due)}`,
-        type: "sip",
-        title: `${sip.name} SIP`,
-        subtitle: sip.platform ?? "Mutual fund SIP",
-        amount: Number(sip.sip_amount) || null,
-        date: toDateString(due),
-        href: "/investments",
-      });
-    }
   }
 
   for (const goal of goalsRes.data ?? []) {

@@ -49,11 +49,6 @@ const typeMeta: Record<
     icon: TrendingUp,
     className: "bg-blue-500/15 text-blue-800 dark:text-blue-300",
   },
-  sip: {
-    label: "SIP",
-    icon: TrendingUp,
-    className: "bg-teal-500/15 text-teal-800 dark:text-teal-300",
-  },
   goal: {
     label: "Goal",
     icon: Target,

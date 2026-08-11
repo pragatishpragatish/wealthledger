@@ -252,11 +252,12 @@ export interface Investment {
   interest_rate: number | null;
   document_url: string | null;
   notes: string | null;
-  is_sip: boolean;
-  sip_amount: number;
-  sip_day: number | null;
-  sip_frequency: "monthly" | "weekly" | "quarterly" | null;
-  sip_start_date: string | null;
+  /** @deprecated Kept for DB compatibility; use dated contributions instead. */
+  is_sip?: boolean;
+  sip_amount?: number;
+  sip_day?: number | null;
+  sip_frequency?: "monthly" | "weekly" | "quarterly" | null;
+  sip_start_date?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
