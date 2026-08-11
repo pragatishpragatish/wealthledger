@@ -113,7 +113,8 @@ export function GoalForm({ open, onOpenChange, goal }: Props) {
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="grid max-h-[70vh] gap-4 overflow-y-auto py-1"
-        >
+         autoComplete="off"
+         >
           <div className="space-y-2">
             <Label htmlFor="goal-name">Name</Label>
             <Input

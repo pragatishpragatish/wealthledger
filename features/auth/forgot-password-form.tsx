@@ -15,7 +15,7 @@ export function ForgotPasswordForm() {
 
   return (
     <div className="space-y-6">
-      <form action={action} className="space-y-4">
+      <form action={action} className="space-y-4" autoComplete="off">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -24,7 +24,7 @@ export function ForgotPasswordForm() {
             type="email"
             placeholder="you@example.com"
             required
-            autoComplete="email"
+            autoComplete="off"
             className="h-11"
           />
         </div>

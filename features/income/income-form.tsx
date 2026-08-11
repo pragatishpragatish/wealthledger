@@ -133,7 +133,8 @@ export function IncomeForm({
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="grid max-h-[70vh] gap-4 overflow-y-auto py-1"
-        >
+         autoComplete="off"
+         >
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="income-amount">Amount (₹)</Label>

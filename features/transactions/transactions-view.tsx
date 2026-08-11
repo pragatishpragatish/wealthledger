@@ -269,6 +269,7 @@ export function TransactionsView({
         <div className="grid gap-3 lg:grid-cols-6">
           <form
             className="relative lg:col-span-2"
+            autoComplete="off"
             onSubmit={(e) => {
               e.preventDefault();
               updateParams({ search: searchInput.trim() || null });

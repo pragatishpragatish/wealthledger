@@ -237,7 +237,8 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="grid max-h-[75vh] gap-4 overflow-y-auto py-1"
-        >
+         autoComplete="off"
+         >
           {!isEdit && (
             <div className="space-y-2">
               <Label>What are you adding?</Label>

@@ -244,7 +244,8 @@ export function LoanForm({ open, onOpenChange, loan, accounts }: Props) {
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="grid max-h-[75vh] gap-4 overflow-y-auto py-1"
-        >
+         autoComplete="off"
+         >
           <div className="flex rounded-lg border border-border/60 bg-muted/40 p-1">
             <button
               type="button"

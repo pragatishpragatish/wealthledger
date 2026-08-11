@@ -80,6 +80,10 @@ function CommandInput({
             className
           )}
           {...props}
+          autoComplete="off"
+          data-1p-ignore=""
+          data-lpignore="true"
+          data-bwignore=""
         />
         <InputGroupAddon>
           <SearchIcon className="size-4 shrink-0 opacity-50" />

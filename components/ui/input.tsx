@@ -3,7 +3,12 @@ import { Input as InputPrimitive } from "@base-ui/react/input"
 
 import { cn } from "@/lib/utils"
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+function Input({
+  className,
+  type,
+  autoComplete = "off",
+  ...props
+}: React.ComponentProps<"input">) {
   return (
     <InputPrimitive
       type={type}
@@ -13,6 +18,11 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         className
       )}
       {...props}
+      autoComplete={autoComplete}
+      data-1p-ignore=""
+      data-lpignore="true"
+      data-form-type="other"
+      data-bwignore=""
     />
   )
 }

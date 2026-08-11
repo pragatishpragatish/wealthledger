@@ -13,7 +13,7 @@ export function ResetPasswordForm() {
   const [state, action, pending] = useActionState(resetPassword, initial);
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="space-y-4" autoComplete="off">
       <div className="space-y-2">
         <Label htmlFor="password">New password</Label>
         <Input
@@ -22,7 +22,7 @@ export function ResetPasswordForm() {
           type="password"
           required
           minLength={8}
-          autoComplete="new-password"
+          autoComplete="off"
           className="h-11"
         />
       </div>
@@ -34,7 +34,7 @@ export function ResetPasswordForm() {
           type="password"
           required
           minLength={8}
-          autoComplete="new-password"
+          autoComplete="off"
           className="h-11"
         />
       </div>

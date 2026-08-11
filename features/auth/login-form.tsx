@@ -24,7 +24,7 @@ export function LoginForm() {
 
   return (
     <div className="space-y-6">
-      <form action={action} className="space-y-4">
+      <form action={action} className="space-y-4" autoComplete="off">
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -33,7 +33,7 @@ export function LoginForm() {
             type="email"
             placeholder="you@example.com"
             required
-            autoComplete="email"
+            autoComplete="off"
             className="h-11"
           />
         </div>
@@ -52,7 +52,7 @@ export function LoginForm() {
             name="password"
             type="password"
             required
-            autoComplete="current-password"
+            autoComplete="off"
             className="h-11"
           />
         </div>
@@ -74,14 +74,14 @@ export function LoginForm() {
         </div>
       </div>
 
-      <form action={signInWithGoogle}>
+      <form action={signInWithGoogle} autoComplete="off">
         <Button type="submit" variant="outline" className="h-11 w-full">
           <GoogleIcon className="mr-2 size-4" />
           Continue with Google
         </Button>
       </form>
 
-      <form action={magicAction} className="space-y-3 rounded-xl border bg-muted/40 p-4">
+      <form action={magicAction} className="space-y-3 rounded-xl border bg-muted/40 p-4" autoComplete="off">
         <p className="text-sm font-medium">Magic link</p>
         <Input
           name="email"

@@ -152,7 +152,8 @@ export function BudgetForm({
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="grid gap-4 py-1"
-        >
+         autoComplete="off"
+         >
           <div className="space-y-2">
             <Label>Category</Label>
             <Controller

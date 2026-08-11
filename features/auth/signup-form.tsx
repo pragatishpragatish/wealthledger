@@ -15,14 +15,14 @@ export function SignupForm() {
 
   return (
     <div className="space-y-6">
-      <form action={action} className="space-y-4">
+      <form action={action} className="space-y-4" autoComplete="off">
         <div className="space-y-2">
           <Label htmlFor="full_name">Full name</Label>
           <Input
             id="full_name"
             name="full_name"
             placeholder="Your name"
-            autoComplete="name"
+            autoComplete="off"
             className="h-11"
           />
         </div>
@@ -34,7 +34,7 @@ export function SignupForm() {
             type="email"
             placeholder="you@example.com"
             required
-            autoComplete="email"
+            autoComplete="off"
             className="h-11"
           />
         </div>
@@ -46,7 +46,7 @@ export function SignupForm() {
             type="password"
             required
             minLength={8}
-            autoComplete="new-password"
+            autoComplete="off"
             className="h-11"
           />
           <p className="text-xs text-muted-foreground">At least 8 characters</p>
@@ -65,7 +65,7 @@ export function SignupForm() {
         </Button>
       </form>
 
-      <form action={signInWithGoogle}>
+      <form action={signInWithGoogle} autoComplete="off">
         <Button type="submit" variant="outline" className="h-11 w-full">
           Continue with Google
         </Button>
