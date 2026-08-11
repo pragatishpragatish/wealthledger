@@ -7,71 +7,9 @@ import {
   calculateCagr,
   calculateFd,
   calculateInflation,
-  calculateLumpsumGrowth,
   calculateRd,
 } from "@/lib/calculations/investment";
 import { CalcField, CalcStat } from "@/features/calculators/calc-ui";
-
-export function LumpsumCalculator() {
-  const [principal, setPrincipal] = useState(100000);
-  const [rate, setRate] = useState(12);
-  const [years, setYears] = useState(5);
-
-  const result = useMemo(
-    () =>
-      calculateLumpsumGrowth({
-        principal,
-        annualRatePercent: rate,
-        years,
-      }),
-    [principal, rate, years]
-  );
-
-  return (
-    <div className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <CalcField label="Lumpsum (₹)">
-          <Input
-            type="number"
-            min={0}
-            value={principal}
-            onChange={(e) => setPrincipal(Number(e.target.value) || 0)}
-          />
-        </CalcField>
-        <CalcField label="Expected return % p.a.">
-          <Input
-            type="number"
-            min={0}
-            step={0.1}
-            value={rate}
-            onChange={(e) => setRate(Number(e.target.value) || 0)}
-          />
-        </CalcField>
-        <CalcField label="Years">
-          <Input
-            type="number"
-            min={0}
-            value={years}
-            onChange={(e) => setYears(Number(e.target.value) || 0)}
-          />
-        </CalcField>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-3">
-        <CalcStat
-          label="Future value"
-          value={formatINR(result.futureValue)}
-          accent="teal"
-        />
-        <CalcStat label="Invested" value={formatINR(result.invested)} />
-        <CalcStat
-          label="Gains"
-          value={formatINR(result.gains)}
-          accent="positive"
-        />
-      </div>
-    </div>
-  );
-}
 
 export function FdCalculator() {
   const [principal, setPrincipal] = useState(100000);

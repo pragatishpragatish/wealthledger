@@ -8,7 +8,6 @@ import {
   PiggyBank,
   Target,
   TrendingUp,
-  Wallet,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
@@ -18,7 +17,6 @@ import {
   CagrCalculator,
   FdCalculator,
   InflationCalculator,
-  LumpsumCalculator,
   RdCalculator,
 } from "@/features/calculators/investment-calculators";
 import { LoanCalculatorsPanel } from "@/features/calculators/loan-calculators";
@@ -26,8 +24,8 @@ import { LoanCalculatorsPanel } from "@/features/calculators/loan-calculators";
 const TOOLS = [
   {
     id: "sip",
-    label: "SIP",
-    description: "Monthly SIP ± lumpsum ± step-up",
+    label: "SIP / Lumpsum",
+    description: "SIP, lumpsum, or both — optional step-up",
     icon: TrendingUp,
     group: "Invest",
   },
@@ -36,13 +34,6 @@ const TOOLS = [
     label: "Goal SIP",
     description: "SIP needed for a target corpus",
     icon: Target,
-    group: "Invest",
-  },
-  {
-    id: "lumpsum",
-    label: "Lumpsum",
-    description: "One-time investment growth",
-    icon: Wallet,
     group: "Invest",
   },
   {
@@ -153,7 +144,6 @@ export function CalculatorsView() {
 
           {active === "sip" && <SipCalculator />}
           {active === "goal" && <GoalSipCalculator />}
-          {active === "lumpsum" && <LumpsumCalculator />}
           {active === "fd" && <FdCalculator />}
           {active === "rd" && <RdCalculator />}
           {active === "loan" && <LoanCalculatorsPanel />}

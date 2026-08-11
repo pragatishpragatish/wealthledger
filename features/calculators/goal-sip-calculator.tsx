@@ -4,16 +4,14 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { formatINR } from "@/utils/currency";
 import { requiredMonthlySip } from "@/lib/calculations/investment";
-import { CalcField, CalcStat, CalcToggle } from "@/features/calculators/calc-ui";
+import { CalcField, CalcStat } from "@/features/calculators/calc-ui";
 
 export function GoalSipCalculator() {
   const [goal, setGoal] = useState(5000000);
+  const [lumpsum, setLumpsum] = useState(0);
+  const [stepUp, setStepUp] = useState(0);
   const [rate, setRate] = useState(12);
   const [years, setYears] = useState(10);
-  const [withLumpsum, setWithLumpsum] = useState(false);
-  const [lumpsum, setLumpsum] = useState(100000);
-  const [withStepUp, setWithStepUp] = useState(false);
-  const [stepUp, setStepUp] = useState(10);
 
   const monthly = useMemo(
     () =>
@@ -21,15 +19,20 @@ export function GoalSipCalculator() {
         goalAmount: goal,
         annualRatePercent: rate,
         years,
-        lumpsum: withLumpsum ? lumpsum : 0,
-        stepUpPercent: withStepUp ? stepUp : 0,
+        lumpsum: Math.max(0, lumpsum),
+        stepUpPercent: Math.max(0, stepUp),
       }),
-    [goal, rate, years, withLumpsum, lumpsum, withStepUp, stepUp]
+    [goal, rate, years, lumpsum, stepUp]
   );
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <p className="text-sm text-muted-foreground">
+        Enter any starting lumpsum (or 0). Step-up is the yearly increase on the
+        required SIP — use 0 for a flat SIP.
+      </p>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <CalcField label="Target corpus (₹)">
           <Input
             type="number"
@@ -37,6 +40,29 @@ export function GoalSipCalculator() {
             step={10000}
             value={goal}
             onChange={(e) => setGoal(Number(e.target.value) || 0)}
+          />
+        </CalcField>
+        <CalcField
+          label="Starting lumpsum (₹)"
+          hint="Already invested / investing now — use 0 if none"
+        >
+          <Input
+            type="number"
+            min={0}
+            value={lumpsum}
+            onChange={(e) => setLumpsum(Number(e.target.value) || 0)}
+          />
+        </CalcField>
+        <CalcField
+          label="SIP step-up % / year"
+          hint="Use 0 for a constant monthly SIP"
+        >
+          <Input
+            type="number"
+            min={0}
+            step={1}
+            value={stepUp}
+            onChange={(e) => setStepUp(Number(e.target.value) || 0)}
           />
         </CalcField>
         <CalcField label="Expected return % p.a.">
@@ -60,48 +86,8 @@ export function GoalSipCalculator() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <CalcToggle
-          checked={withLumpsum}
-          onCheckedChange={setWithLumpsum}
-          label="Starting lumpsum"
-          description="Already invested or investing now"
-        />
-        <CalcToggle
-          checked={withStepUp}
-          onCheckedChange={setWithStepUp}
-          label="Plan annual step-up"
-          description="Starting SIP grows each year"
-        />
-      </div>
-
-      {(withLumpsum || withStepUp) && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {withLumpsum && (
-            <CalcField label="Lumpsum (₹)">
-              <Input
-                type="number"
-                min={0}
-                value={lumpsum}
-                onChange={(e) => setLumpsum(Number(e.target.value) || 0)}
-              />
-            </CalcField>
-          )}
-          {withStepUp && (
-            <CalcField label="Step-up % / year">
-              <Input
-                type="number"
-                min={0}
-                value={stepUp}
-                onChange={(e) => setStepUp(Number(e.target.value) || 0)}
-              />
-            </CalcField>
-          )}
-        </div>
-      )}
-
-      <div className="grid gap-3 sm:grid-cols-2">
         <CalcStat
-          label={withStepUp ? "Starting monthly SIP" : "Required monthly SIP"}
+          label={stepUp > 0 ? "Starting monthly SIP" : "Required monthly SIP"}
           value={formatINR(monthly)}
           accent="teal"
         />
