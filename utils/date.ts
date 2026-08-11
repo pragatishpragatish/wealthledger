@@ -1,4 +1,4 @@
-import { format, parseISO, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 
 export function toDateString(date: Date): string {
   return format(date, "yyyy-MM-dd");
@@ -17,6 +17,55 @@ export function formatShortDate(date: string | Date): string {
 export function formatMonthYear(date: string | Date): string {
   const d = typeof date === "string" ? parseISO(date) : date;
   return format(d, "MMM yyyy");
+}
+
+/** `yyyy-MM` key for a calendar month. */
+export function getMonthKey(date: Date = new Date()): string {
+  return format(date, "yyyy-MM");
+}
+
+export function parseMonthKey(key: string): Date | null {
+  if (!/^\d{4}-\d{2}$/.test(key)) return null;
+  const [y, m] = key.split("-").map(Number);
+  if (m < 1 || m > 12) return null;
+  return new Date(y, m - 1, 1);
+}
+
+export function formatMonthKeyLabel(key: string): string {
+  const d = parseMonthKey(key);
+  return d ? format(d, "MMMM yyyy") : key;
+}
+
+export function shiftMonthKey(key: string, delta: number): string {
+  const d = parseMonthKey(key) ?? new Date();
+  return getMonthKey(addMonths(d, delta));
+}
+
+/** Inclusive start/end date strings for a `yyyy-MM` month. */
+export function getMonthBoundsFromKey(key: string): {
+  start: string;
+  end: string;
+} {
+  const d = parseMonthKey(key) ?? startOfMonth(new Date());
+  return {
+    start: toDateString(startOfMonth(d)),
+    end: toDateString(endOfMonth(d)),
+  };
+}
+
+/** Inclusive range spanning fromMonth…toMonth (`yyyy-MM`). */
+export function getBoundsForMonthSpan(
+  fromMonth: string,
+  toMonth: string
+): { start: string; end: string } {
+  let startKey = fromMonth;
+  let endKey = toMonth;
+  if (startKey > endKey) {
+    [startKey, endKey] = [endKey, startKey];
+  }
+  const start = getMonthBoundsFromKey(startKey).start;
+  const end = getMonthBoundsFromKey(endKey).end;
+  return { start, end };
 }
 
 export function getCurrentMonthRange(): { start: string; end: string } {
