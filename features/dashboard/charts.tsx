@@ -13,19 +13,12 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { formatINR, formatINRCompact } from "@/utils/currency";
+import { formatINRCompact } from "@/utils/currency";
+import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import type { AllocationPoint, ChartPoint } from "@/types";
-
-const tooltipStyle = {
-  backgroundColor: "hsl(var(--card))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "12px",
-  fontSize: "12px",
-};
 
 function ChartCard({
   title,
@@ -56,12 +49,20 @@ export function CashFlowChart({ data }: { data: ChartPoint[] }) {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
-          <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="currentColor" className="text-muted-foreground" />
-          <YAxis tickFormatter={(v) => formatINRCompact(v)} tick={{ fontSize: 11 }} stroke="currentColor" className="text-muted-foreground" width={56} />
-          <Tooltip
-            contentStyle={tooltipStyle}
-            formatter={(value) => formatINR(Number(value ?? 0))}
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 12 }}
+            stroke="currentColor"
+            className="text-muted-foreground"
           />
+          <YAxis
+            tickFormatter={(v) => formatINRCompact(v)}
+            tick={{ fontSize: 11 }}
+            stroke="currentColor"
+            className="text-muted-foreground"
+            width={56}
+          />
+          <ChartTooltip />
           <Area
             type="monotone"
             dataKey="value"
@@ -82,15 +83,33 @@ export function IncomeExpenseChart({ data }: { data: ChartPoint[] }) {
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} barGap={4}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
-          <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="currentColor" className="text-muted-foreground" />
-          <YAxis tickFormatter={(v) => formatINRCompact(v)} tick={{ fontSize: 11 }} stroke="currentColor" className="text-muted-foreground" width={56} />
-          <Tooltip
-            contentStyle={tooltipStyle}
-            formatter={(value) => formatINR(Number(value ?? 0))}
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 12 }}
+            stroke="currentColor"
+            className="text-muted-foreground"
           />
+          <YAxis
+            tickFormatter={(v) => formatINRCompact(v)}
+            tick={{ fontSize: 11 }}
+            stroke="currentColor"
+            className="text-muted-foreground"
+            width={56}
+          />
+          <ChartTooltip />
           <Legend />
-          <Bar dataKey="value" name="Income" fill="#0F766E" radius={[6, 6, 0, 0]} />
-          <Bar dataKey="secondary" name="Expense" fill="#E11D48" radius={[6, 6, 0, 0]} />
+          <Bar
+            dataKey="value"
+            name="Income"
+            fill="#0F766E"
+            radius={[6, 6, 0, 0]}
+          />
+          <Bar
+            dataKey="secondary"
+            name="Expense"
+            fill="#E11D48"
+            radius={[6, 6, 0, 0]}
+          />
         </BarChart>
       </ResponsiveContainer>
     </ChartCard>
@@ -103,12 +122,20 @@ export function SpendingTrendChart({ data }: { data: ChartPoint[] }) {
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
-          <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="currentColor" className="text-muted-foreground" />
-          <YAxis tickFormatter={(v) => formatINRCompact(v)} tick={{ fontSize: 11 }} stroke="currentColor" className="text-muted-foreground" width={56} />
-          <Tooltip
-            contentStyle={tooltipStyle}
-            formatter={(value) => formatINR(Number(value ?? 0))}
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 12 }}
+            stroke="currentColor"
+            className="text-muted-foreground"
           />
+          <YAxis
+            tickFormatter={(v) => formatINRCompact(v)}
+            tick={{ fontSize: 11 }}
+            stroke="currentColor"
+            className="text-muted-foreground"
+            width={56}
+          />
+          <ChartTooltip />
           <Line
             type="monotone"
             dataKey="value"
@@ -149,13 +176,13 @@ export function AllocationChart({
               paddingAngle={3}
             >
               {data.map((entry, i) => (
-                <Cell key={entry.name} fill={entry.color ?? `hsl(${i * 40}, 60%, 45%)`} />
+                <Cell
+                  key={entry.name}
+                  fill={entry.color ?? `hsl(${i * 40}, 60%, 45%)`}
+                />
               ))}
             </Pie>
-            <Tooltip
-              contentStyle={tooltipStyle}
-              formatter={(value) => formatINR(Number(value ?? 0))}
-            />
+            <ChartTooltip />
             <Legend />
           </PieChart>
         </ResponsiveContainer>
@@ -176,12 +203,20 @@ export function NetWorthTrendChart({ data }: { data: ChartPoint[] }) {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
-          <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="currentColor" className="text-muted-foreground" />
-          <YAxis tickFormatter={(v) => formatINRCompact(v)} tick={{ fontSize: 11 }} stroke="currentColor" className="text-muted-foreground" width={56} />
-          <Tooltip
-            contentStyle={tooltipStyle}
-            formatter={(value) => formatINR(Number(value ?? 0))}
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 12 }}
+            stroke="currentColor"
+            className="text-muted-foreground"
           />
+          <YAxis
+            tickFormatter={(v) => formatINRCompact(v)}
+            tick={{ fontSize: 11 }}
+            stroke="currentColor"
+            className="text-muted-foreground"
+            width={56}
+          />
+          <ChartTooltip />
           <Area
             type="monotone"
             dataKey="value"

@@ -11,7 +11,6 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -20,6 +19,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
+import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import { formatINR, formatINRCompact, formatPercent } from "@/utils/currency";
 import { formatDisplayDate } from "@/utils/date";
 import { LOAN_TYPES } from "@/lib/constants";
@@ -33,13 +33,6 @@ import type { LoanDetailData } from "@/features/loans/queries";
 const typeLabel = Object.fromEntries(
   LOAN_TYPES.map((t) => [t.value, t.label])
 ) as Record<string, string>;
-
-const tooltipStyle = {
-  backgroundColor: "hsl(var(--card))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "12px",
-  fontSize: "12px",
-};
 
 export function LoanDetailView({ data }: { data: LoanDetailData }) {
   const { loan, schedule, scheduleTotals, principalVsInterest, outstandingTrend, simulations, accounts } =
@@ -172,10 +165,7 @@ export function LoanDetailView({ data }: { data: LoanDetailData }) {
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(value) => formatINR(Number(value ?? 0))}
-                  />
+                  <ChartTooltip />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
@@ -213,10 +203,7 @@ export function LoanDetailView({ data }: { data: LoanDetailData }) {
                     className="text-muted-foreground"
                     width={56}
                   />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    formatter={(value) => formatINR(Number(value ?? 0))}
-                  />
+                  <ChartTooltip />
                   <Area
                     type="monotone"
                     dataKey="value"

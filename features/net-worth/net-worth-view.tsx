@@ -6,7 +6,6 @@ import {
   AreaChart,
   CartesianGrid,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -23,18 +22,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import { formatINR, formatINRCompact } from "@/utils/currency";
 import { formatDisplayDate } from "@/utils/date";
 import { cn } from "@/lib/utils";
 import { saveSnapshot } from "@/features/net-worth/actions";
 import type { NetWorthPageData } from "@/features/net-worth/queries";
-
-const tooltipStyle = {
-  backgroundColor: "hsl(var(--card))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "12px",
-  fontSize: "12px",
-};
 
 export function NetWorthView({ data }: { data: NetWorthPageData }) {
   const { live, snapshots, trend, assetItems, liabilityItems } = data;
@@ -154,10 +147,7 @@ export function NetWorthView({ data }: { data: NetWorthPageData }) {
                 className="text-muted-foreground"
                 width={56}
               />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                formatter={(value) => formatINR(Number(value ?? 0))}
-              />
+              <ChartTooltip />
               <Area
                 type="monotone"
                 dataKey="value"

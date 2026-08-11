@@ -7,7 +7,6 @@ import {
   Line,
   LineChart,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -17,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import { cn } from "@/lib/utils";
 import { formatINR, formatINRCompact } from "@/utils/currency";
 import { toDateString } from "@/utils/date";
@@ -28,13 +28,6 @@ import type { LoanSimulation, PrepaymentStrategy } from "@/types";
 type Props = {
   loan: LoanComputed;
   simulations: LoanSimulation[];
-};
-
-const tooltipStyle = {
-  backgroundColor: "hsl(var(--card))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: "12px",
-  fontSize: "12px",
 };
 
 export function PrepaymentSimulator({ loan, simulations }: Props) {
@@ -264,10 +257,7 @@ export function PrepaymentSimulator({ loan, simulations }: Props) {
                 className="text-muted-foreground"
                 width={56}
               />
-              <Tooltip
-                contentStyle={tooltipStyle}
-                formatter={(value) => formatINR(Number(value ?? 0))}
-              />
+              <ChartTooltip />
               <Legend />
               <Line
                 type="monotone"

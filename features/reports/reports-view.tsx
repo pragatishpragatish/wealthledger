@@ -16,7 +16,6 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
@@ -29,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ChartTooltip } from "@/components/charts/chart-tooltip";
 import {
   Table,
   TableBody,
@@ -409,7 +409,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
               />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 11 }} width={56} />
-              <Tooltip formatter={(v) => formatINR(Number(v ?? 0))} />
+              <ChartTooltip />
               <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                 {cashFlowChart.map((entry, i) => (
                   <Cell
@@ -466,7 +466,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v) => formatINR(Number(v ?? 0))} />
+                  <ChartTooltip />
                 </PieChart>
               </ResponsiveContainer>
             </div>
