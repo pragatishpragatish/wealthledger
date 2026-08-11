@@ -8,7 +8,7 @@ import {
   startOfMonth,
 } from "date-fns";
 import { requireUser } from "@/lib/auth";
-import { toDateString } from "@/utils/date";
+import { clampDayOfMonth, getCreditCardCycle, toDateString } from "@/utils/date";
 
 export type CalendarEventType =
   | "credit_card"
@@ -65,7 +65,7 @@ export async function getCalendarPageData(opts?: {
     supabase
       .from("credit_cards")
       .select(
-        "id, bank, card_name, due_date, outstanding, statement_amount, minimum_due, is_active"
+        "id, bank, card_name, billing_date, due_date, outstanding, statement_amount, minimum_due, is_active"
       )
       .eq("user_id", user.id)
       .eq("is_active", true),
@@ -126,20 +126,57 @@ export async function getCalendarPageData(opts?: {
   const events: CalendarEvent[] = [];
 
   for (const card of cardsRes.data ?? []) {
-    // Generate dues for current view month and next few months
-    for (let i = 0; i < HORIZON_MONTHS + 1; i++) {
-      const base = addMonths(new Date(year, month - 1, 1), i);
-      const dueDay = Math.min(card.due_date, 28);
-      const due = new Date(base.getFullYear(), base.getMonth(), dueDay);
-      if (due < now && toDateString(due) !== todayStr) continue;
-      if (due > horizonEnd) continue;
+    const billingDay = Number(card.billing_date);
+    const dueDay = Number(card.due_date);
+    const statementAmount = Number(card.statement_amount);
+    const cycle = getCreditCardCycle(billingDay, dueDay, now);
+
+    // Open statement payment due (only when there is a billed amount).
+    if (statementAmount > 0) {
+      const due = cycle.currentStatementDueDate;
+      if (
+        (due >= now || toDateString(due) === todayStr) &&
+        due <= horizonEnd
+      ) {
+        events.push({
+          id: `cc-${card.id}-${toDateString(due)}`,
+          type: "credit_card",
+          title: `${card.bank} ${card.card_name}`,
+          subtitle: `Statement due · Min ₹${Number(card.minimum_due).toLocaleString("en-IN")}`,
+          amount: statementAmount,
+          date: toDateString(due),
+          href: "/credit-cards",
+        });
+      }
+    }
+
+    // Upcoming statement generation dates in the horizon (no payment amount).
+    for (let i = 0; i < HORIZON_MONTHS + 2; i++) {
+      const base = addMonths(
+        new Date(
+          cycle.nextStatementDate.getFullYear(),
+          cycle.nextStatementDate.getMonth(),
+          1
+        ),
+        i
+      );
+      const statementDate = clampDayOfMonth(
+        base.getFullYear(),
+        base.getMonth(),
+        billingDay
+      );
+      if (statementDate < now && toDateString(statementDate) !== todayStr) {
+        continue;
+      }
+      if (statementDate > horizonEnd) continue;
+
       events.push({
-        id: `cc-${card.id}-${toDateString(due)}`,
+        id: `cc-stmt-${card.id}-${toDateString(statementDate)}`,
         type: "credit_card",
         title: `${card.bank} ${card.card_name}`,
-        subtitle: `Min due ₹${Number(card.minimum_due).toLocaleString("en-IN")}`,
-        amount: Number(card.statement_amount || card.outstanding),
-        date: toDateString(due),
+        subtitle: "Statement date",
+        amount: null,
+        date: toDateString(statementDate),
         href: "/credit-cards",
       });
     }

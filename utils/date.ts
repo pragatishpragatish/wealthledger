@@ -42,16 +42,117 @@ export function getLastNMonthsLabels(n: number): string[] {
   });
 }
 
-/** Next occurrence of a day-of-month (1–28) from today */
-export function nextDueDate(dayOfMonth: number): Date {
-  const today = new Date();
+/** Local calendar day at 00:00 (avoids time-of-day skew). */
+export function startOfLocalDay(date: Date = new Date()): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+/**
+ * Build a date for `day` in a given month, clamping to the last day when
+ * the month is shorter (e.g. billing day 31 in February → 28/29).
+ * `monthIndex` is 0-based; may be out of range (JS Date rolls over).
+ */
+export function clampDayOfMonth(
+  year: number,
+  monthIndex: number,
+  day: number
+): Date {
+  const safeDay = Number.isFinite(day) ? Math.trunc(day) : 1;
+  const requested = Math.min(31, Math.max(1, safeDay));
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  return new Date(year, monthIndex, Math.min(requested, lastDay));
+}
+
+/**
+ * Next occurrence of a day-of-month from `from` (used for EMI / simple schedules).
+ * Prefer {@link getCreditCardCycle} for credit cards (billing + due days).
+ */
+export function nextDueDate(dayOfMonth: number, from: Date = new Date()): Date {
+  const today = startOfLocalDay(from);
   const year = today.getFullYear();
   const month = today.getMonth();
-  let candidate = new Date(year, month, dayOfMonth);
+  let candidate = clampDayOfMonth(year, month, dayOfMonth);
   if (candidate < today) {
-    candidate = new Date(year, month + 1, dayOfMonth);
+    candidate = clampDayOfMonth(year, month + 1, dayOfMonth);
   }
   return candidate;
+}
+
+export type CreditCardCycle = {
+  /** Next statement generation date (unbilled spend lands here). */
+  nextStatementDate: Date;
+  /** Payment due date tied to {@link nextStatementDate}. */
+  nextDueDate: Date;
+  /** Most recent statement that has already been generated (incl. today). */
+  lastStatementDate: Date;
+  /** Payment due date for {@link lastStatementDate}. */
+  currentStatementDueDate: Date;
+};
+
+/**
+ * Credit-card billing cycle from statement day + due day.
+ *
+ * - Before billing day: next statement is this month's billing day.
+ * - On/after billing day: next statement is next month's billing day.
+ * - Due day is always in the same calendar month as its statement
+ *   (clamped for short months).
+ */
+export function getCreditCardCycle(
+  billingDay: number,
+  dueDay: number,
+  from: Date = new Date()
+): CreditCardCycle {
+  const today = startOfLocalDay(from);
+  const year = today.getFullYear();
+  const month = today.getMonth();
+
+  const billingThisMonth = clampDayOfMonth(year, month, billingDay);
+
+  const nextStatementDate =
+    today < billingThisMonth
+      ? billingThisMonth
+      : clampDayOfMonth(year, month + 1, billingDay);
+
+  const nextDueDateValue = clampDayOfMonth(
+    nextStatementDate.getFullYear(),
+    nextStatementDate.getMonth(),
+    dueDay
+  );
+
+  const lastStatementDate = clampDayOfMonth(
+    nextStatementDate.getFullYear(),
+    nextStatementDate.getMonth() - 1,
+    billingDay
+  );
+
+  const currentStatementDueDate = clampDayOfMonth(
+    lastStatementDate.getFullYear(),
+    lastStatementDate.getMonth(),
+    dueDay
+  );
+
+  return {
+    nextStatementDate,
+    nextDueDate: nextDueDateValue,
+    lastStatementDate,
+    currentStatementDueDate,
+  };
+}
+
+/**
+ * Date to show for "due" on a card:
+ * - If a statement amount is open (> 0), use that statement's due date.
+ * - Otherwise use the due date of the *next* statement (unbilled not yet due).
+ */
+export function getCreditCardDisplayDueDate(
+  billingDay: number,
+  dueDay: number,
+  statementAmount: number,
+  from: Date = new Date()
+): Date {
+  const cycle = getCreditCardCycle(billingDay, dueDay, from);
+  if (statementAmount > 0) return cycle.currentStatementDueDate;
+  return cycle.nextDueDate;
 }
 
 /**

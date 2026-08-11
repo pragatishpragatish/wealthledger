@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentMonthRange, nextDueDate, toDateString } from "@/utils/date";
+import { getCurrentMonthRange, getCreditCardCycle, nextDueDate, toDateString } from "@/utils/date";
 import { format } from "date-fns";
 import type {
   AllocationPoint,
@@ -61,7 +61,7 @@ export async function getDashboardData() {
       .eq("is_active", true),
     supabase
       .from("credit_cards")
-      .select("id, bank, card_name, outstanding, due_date, minimum_due, statement_amount, is_active")
+      .select("id, bank, card_name, outstanding, billing_date, due_date, minimum_due, statement_amount, is_active")
       .eq("user_id", user.id)
       .eq("is_active", true),
     supabase
@@ -235,13 +235,20 @@ export async function getDashboardData() {
   const upcoming: UpcomingItem[] = [];
 
   for (const card of cards) {
-    const due = nextDueDate(card.due_date);
+    const statementAmount = Number(card.statement_amount);
+    // Unbilled outstanding is not a payment due yet.
+    if (statementAmount <= 0) continue;
+
+    const cycle = getCreditCardCycle(
+      Number(card.billing_date),
+      Number(card.due_date)
+    );
     upcoming.push({
       id: `cc-${card.id}`,
       type: "credit_card",
       title: `${card.bank} ${card.card_name}`,
-      amount: Number(card.statement_amount || card.outstanding),
-      dueDate: toDateString(due),
+      amount: statementAmount,
+      dueDate: toDateString(cycle.currentStatementDueDate),
       subtitle: `Min due ${Number(card.minimum_due).toLocaleString("en-IN")}`,
       href: "/credit-cards",
     });

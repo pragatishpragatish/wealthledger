@@ -253,6 +253,9 @@ export function CreditCardForm({ open, onOpenChange, card }: Props) {
                 min="0"
                 {...form.register("statement_amount")}
               />
+              <p className="text-[11px] text-muted-foreground">
+                Last billed amount — leave 0 for unbilled spend only
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="cc-min">Min due (₹)</Label>
@@ -283,10 +286,13 @@ export function CreditCardForm({ open, onOpenChange, card }: Props) {
                 id="cc-billing"
                 type="number"
                 min={1}
-                max={28}
+                max={31}
                 {...form.register("billing_date")}
                 aria-invalid={!!form.formState.errors.billing_date}
               />
+              <p className="text-[11px] text-muted-foreground">
+                Statement generation day each month
+              </p>
               {form.formState.errors.billing_date && (
                 <p className="text-xs text-destructive">
                   {form.formState.errors.billing_date.message}
@@ -299,10 +305,13 @@ export function CreditCardForm({ open, onOpenChange, card }: Props) {
                 id="cc-due"
                 type="number"
                 min={1}
-                max={28}
+                max={31}
                 {...form.register("due_date")}
                 aria-invalid={!!form.formState.errors.due_date}
               />
+              <p className="text-[11px] text-muted-foreground">
+                Payment due day in the statement month
+              </p>
               {form.formState.errors.due_date && (
                 <p className="text-xs text-destructive">
                   {form.formState.errors.due_date.message}

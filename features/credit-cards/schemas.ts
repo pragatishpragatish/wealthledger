@@ -12,10 +12,10 @@ const rewardValues = CREDIT_CARD_REWARD_TYPES.map((r) => r.value) as [
 ];
 
 const dayOfMonth = z.coerce
-  .number({ invalid_type_error: "Enter a day between 1 and 28" })
+  .number({ invalid_type_error: "Enter a day between 1 and 31" })
   .int("Must be a whole number")
-  .min(1, "Day must be between 1 and 28")
-  .max(28, "Day must be between 1 and 28");
+  .min(1, "Day must be between 1 and 31")
+  .max(31, "Day must be between 1 and 31");
 
 export const creditCardSchema = z.object({
   bank: z.string().trim().min(1, "Bank is required").max(100),

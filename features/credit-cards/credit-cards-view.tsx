@@ -129,12 +129,12 @@ export function CreditCardsView({ data }: { data: CreditCardsPageData }) {
                     {card.bank} {card.card_name}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Due {formatDisplayDate(card.next_due_date)} · Min{" "}
-                    {formatINR(card.minimum_due)}
+                    Statement due {formatDisplayDate(card.statement_due_date)} ·
+                    Min {formatINR(card.minimum_due)}
                   </p>
                 </div>
                 <span className="shrink-0 tabular-nums font-medium">
-                  {formatINR(card.statement_amount || card.outstanding)}
+                  {formatINR(card.statement_amount)}
                 </span>
               </li>
             ))}
@@ -200,9 +200,20 @@ export function CreditCardsView({ data }: { data: CreditCardsPageData }) {
                   <Badge variant="secondary">
                     {rewardLabel[card.reward_type] ?? card.reward_type}
                   </Badge>
-                  <Badge variant="outline">
-                    Due {formatDisplayDate(card.next_due_date)}
-                  </Badge>
+                  {card.has_payable_statement ? (
+                    <Badge variant="outline">
+                      Statement due {formatDisplayDate(card.statement_due_date)}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">
+                      Next stmt {formatDisplayDate(card.next_statement_date)}
+                    </Badge>
+                  )}
+                  {!card.has_payable_statement && card.unbilled_amount > 0 ? (
+                    <Badge variant="secondary">
+                      Unbilled {formatINR(card.unbilled_amount)}
+                    </Badge>
+                  ) : null}
                 </div>
 
                 <div className="mt-5 space-y-3">
@@ -276,6 +287,26 @@ export function CreditCardsView({ data }: { data: CreditCardsPageData }) {
                       <p className="text-muted-foreground">Interest</p>
                       <p className="mt-0.5 font-medium tabular-nums">
                         {formatPercent(card.interest_rate)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Next statement</p>
+                      <p className="mt-0.5 font-medium tabular-nums">
+                        {formatDisplayDate(card.next_statement_date)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">
+                        {card.has_payable_statement
+                          ? "Statement due"
+                          : "Next due"}
+                      </p>
+                      <p className="mt-0.5 font-medium tabular-nums">
+                        {formatDisplayDate(
+                          card.has_payable_statement
+                            ? card.statement_due_date
+                            : card.next_due_date
+                        )}
                       </p>
                     </div>
                   </div>
