@@ -263,6 +263,33 @@ export interface Investment {
   updated_at: string;
 }
 
+export type BudgetHistorySource = "create" | "edit" | "recurring_seed";
+
+export interface BudgetTemplate {
+  id: string;
+  user_id: string;
+  category_id: string;
+  period: BudgetPeriod;
+  amount: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BudgetAmountHistory {
+  id: string;
+  user_id: string;
+  budget_id: string | null;
+  category_id: string | null;
+  period: BudgetPeriod;
+  year: number;
+  month: number | null;
+  old_amount: number | null;
+  new_amount: number;
+  source: BudgetHistorySource;
+  created_at: string;
+}
+
 export interface Budget {
   id: string;
   user_id: string;
@@ -272,6 +299,7 @@ export interface Budget {
   month: number | null;
   amount: number;
   spent: number;
+  template_id: string | null;
   created_at: string;
   updated_at: string;
   category?: Category | null;

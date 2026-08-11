@@ -18,6 +18,8 @@ export const budgetSchema = z
       .optional()
       .nullable(),
     amount: positiveMoneySchema,
+    is_recurring: z.boolean().optional().default(false),
+    this_period_only: z.boolean().optional().default(false),
   })
   .superRefine((data, ctx) => {
     if (data.period === "monthly" && (data.month == null || data.month < 1)) {

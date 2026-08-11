@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { z } from "zod";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -70,6 +71,8 @@ function defaults(
       year: budget.year,
       month: budget.month,
       amount: budget.amount,
+      is_recurring: budget.is_recurring,
+      this_period_only: false,
     };
   }
   return {
@@ -78,6 +81,8 @@ function defaults(
     year: defaultYear,
     month: defaultPeriod === "monthly" ? defaultMonth : null,
     amount: 0,
+    is_recurring: false,
+    this_period_only: false,
   };
 }
 
@@ -146,14 +151,17 @@ export function BudgetForm({
           <DialogTitle>{isEdit ? "Edit budget" : "Add budget"}</DialogTitle>
           <DialogDescription>
             Set a spending limit for a category and period.
+            {budget?.is_recurring
+              ? " Recurring budgets carry forward each period."
+              : ""}
           </DialogDescription>
         </DialogHeader>
 
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="grid gap-4 py-1"
-         autoComplete="off"
-         >
+          autoComplete="off"
+        >
           <div className="space-y-2">
             <Label>Category</Label>
             <Controller
@@ -286,6 +294,50 @@ export function BudgetForm({
               </p>
             )}
           </div>
+
+          {(!isEdit || !budget?.is_recurring) && (
+            <div className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-2.5">
+              <Controller
+                control={form.control}
+                name="is_recurring"
+                render={({ field }) => (
+                  <Checkbox
+                    checked={Boolean(field.value)}
+                    onCheckedChange={(checked) =>
+                      field.onChange(checked === true)
+                    }
+                    id="budget-recurring"
+                  />
+                )}
+              />
+              <Label htmlFor="budget-recurring" className="font-normal">
+                {period === "yearly"
+                  ? "Repeat every year"
+                  : "Repeat every month"}
+              </Label>
+            </div>
+          )}
+
+          {isEdit && budget?.is_recurring && (
+            <div className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-2.5">
+              <Controller
+                control={form.control}
+                name="this_period_only"
+                render={({ field }) => (
+                  <Checkbox
+                    checked={Boolean(field.value)}
+                    onCheckedChange={(checked) =>
+                      field.onChange(checked === true)
+                    }
+                    id="budget-this-period"
+                  />
+                )}
+              />
+              <Label htmlFor="budget-this-period" className="font-normal">
+                Change this period only (keep recurring amount)
+              </Label>
+            </div>
+          )}
 
           <DialogFooter className="mt-2">
             <Button

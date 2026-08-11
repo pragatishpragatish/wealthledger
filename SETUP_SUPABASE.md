@@ -190,6 +190,7 @@ This creates all tables, RLS policies, storage buckets, and the signup trigger.
    4. `supabase/migrations/004_delete_own_account.sql` (account self-deletion)
    5. `supabase/migrations/005_credit_card_billing_days.sql` (billing/due days 1–31)
    6. `supabase/migrations/006_extra_categories.sql` (Subscriptions, Gym, Trading/Stock returns)
+   7. `supabase/migrations/007_recurring_budgets.sql` (recurring budgets + amount edit history)
 
 4. Click **Run** for each (or paste both if preferred, one after the other).
 5. Confirm you see **Success** (no red errors).

@@ -4,10 +4,13 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
   MoreHorizontal,
   Pencil,
   PiggyBank,
   Plus,
+  RefreshCwOff,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,8 +28,12 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import { formatINR, formatPercent } from "@/utils/currency";
 import { cn } from "@/lib/utils";
-import { deleteBudget } from "@/features/budgets/actions";
+import {
+  deleteBudget,
+  stopRecurringBudget,
+} from "@/features/budgets/actions";
 import { BudgetForm } from "@/features/budgets/budget-form";
+import { BudgetProgressionPanel } from "@/features/budgets/budget-progression";
 import type {
   BudgetComputed,
   BudgetsPageData,
@@ -40,28 +47,32 @@ function warningMeta(level: BudgetComputed["warningLevel"]) {
         label: "Over budget",
         bar: "bg-rose-600 dark:bg-rose-400",
         text: "text-rose-600 dark:text-rose-400",
-        badge: "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300",
+        badge:
+          "border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300",
       };
     case 90:
       return {
         label: "90% used",
         bar: "bg-orange-500",
         text: "text-orange-600 dark:text-orange-400",
-        badge: "border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-300",
+        badge:
+          "border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-300",
       };
     case 75:
       return {
         label: "75% used",
         bar: "bg-amber-500",
         text: "text-amber-600 dark:text-amber-400",
-        badge: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+        badge:
+          "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
       };
     case 50:
       return {
         label: "50% used",
         bar: "bg-yellow-500",
         text: "text-yellow-700 dark:text-yellow-400",
-        badge: "border-yellow-500/40 bg-yellow-500/10 text-yellow-800 dark:text-yellow-300",
+        badge:
+          "border-yellow-500/40 bg-yellow-500/10 text-yellow-800 dark:text-yellow-300",
       };
     default:
       return {
@@ -73,6 +84,32 @@ function warningMeta(level: BudgetComputed["warningLevel"]) {
   }
 }
 
+function pushBudgetsUrl(
+  router: ReturnType<typeof useRouter>,
+  period: BudgetPeriod,
+  year: number,
+  month: number
+) {
+  const params = new URLSearchParams();
+  params.set("period", period);
+  params.set("year", String(year));
+  if (period === "monthly") params.set("month", String(month));
+  router.push(`/budgets?${params.toString()}`);
+}
+
+function shiftPeriod(
+  period: BudgetPeriod,
+  year: number,
+  month: number,
+  delta: number
+): { year: number; month: number } {
+  if (period === "yearly") {
+    return { year: year + delta, month };
+  }
+  const d = new Date(year, month - 1 + delta, 1);
+  return { year: d.getFullYear(), month: d.getMonth() + 1 };
+}
+
 export function BudgetsView({ data }: { data: BudgetsPageData }) {
   const router = useRouter();
   const { budgets, period, year, month, categories, summary } = data;
@@ -81,17 +118,33 @@ export function BudgetsView({ data }: { data: BudgetsPageData }) {
   const [deleting, setDeleting] = useState<BudgetComputed | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const now = new Date();
+  const isCurrentPeriod =
+    period === "yearly"
+      ? year === now.getFullYear()
+      : year === now.getFullYear() && month === now.getMonth() + 1;
+
   const warned = useMemo(
     () => budgets.filter((b) => b.warningLevel >= 50),
     [budgets]
   );
 
   function setPeriod(next: BudgetPeriod) {
-    const params = new URLSearchParams();
-    params.set("period", next);
-    params.set("year", String(year));
-    if (next === "monthly") params.set("month", String(month));
-    router.push(`/budgets?${params.toString()}`);
+    pushBudgetsUrl(router, next, year, month);
+  }
+
+  function goDelta(delta: number) {
+    const next = shiftPeriod(period, year, month, delta);
+    pushBudgetsUrl(router, period, next.year, next.month);
+  }
+
+  function goCurrent() {
+    pushBudgetsUrl(
+      router,
+      period,
+      now.getFullYear(),
+      now.getMonth() + 1
+    );
   }
 
   function openCreate() {
@@ -114,6 +167,18 @@ export function BudgetsView({ data }: { data: BudgetsPageData }) {
       }
       toast.success("Budget deleted");
       setDeleting(null);
+    });
+  }
+
+  function handleStopRecurring(budget: BudgetComputed) {
+    if (!budget.template_id) return;
+    startTransition(async () => {
+      const result = await stopRecurringBudget(budget.template_id!);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Recurring stopped — this period remains");
     });
   }
 
@@ -142,14 +207,46 @@ export function BudgetsView({ data }: { data: BudgetsPageData }) {
             <TabsTrigger value="yearly">Yearly</TabsTrigger>
           </TabsList>
         </Tabs>
-        <p className="text-sm text-muted-foreground">
-          {period === "monthly"
-            ? new Date(year, month - 1).toLocaleString("en-IN", {
-                month: "long",
-                year: "numeric",
-              })
-            : `Year ${year}`}
-        </p>
+
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label={period === "yearly" ? "Previous year" : "Previous month"}
+            onClick={() => goDelta(-1)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <p className="min-w-[9rem] text-center text-sm font-medium">
+            {period === "monthly"
+              ? new Date(year, month - 1).toLocaleString("en-IN", {
+                  month: "long",
+                  year: "numeric",
+                })
+              : `Year ${year}`}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label={period === "yearly" ? "Next year" : "Next month"}
+            onClick={() => goDelta(1)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+          {!isCurrentPeriod && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="ml-1"
+              onClick={goCurrent}
+            >
+              {period === "yearly" ? "This year" : "This month"}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -193,7 +290,7 @@ export function BudgetsView({ data }: { data: BudgetsPageData }) {
         <EmptyState
           icon={PiggyBank}
           title="No budgets yet"
-          description="Create a category budget to track spending against limits."
+          description="Create a category budget to track spending against limits. Turn on repeating to carry it forward each period."
           action={
             <Button onClick={openCreate}>
               <Plus className="size-4" />
@@ -203,7 +300,7 @@ export function BudgetsView({ data }: { data: BudgetsPageData }) {
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {budgets.map((budget, i) => {
+          {budgets.map((budget) => {
             const meta = warningMeta(budget.warningLevel);
             return (
               <div
@@ -223,6 +320,14 @@ export function BudgetsView({ data }: { data: BudgetsPageData }) {
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
+                    {budget.is_recurring && (
+                      <Badge
+                        variant="outline"
+                        className="border-teal-500/30 bg-teal-500/10 text-teal-800 dark:text-teal-300"
+                      >
+                        Recurring
+                      </Badge>
+                    )}
                     {meta.label && (
                       <Badge variant="outline" className={meta.badge}>
                         {meta.label}
@@ -240,12 +345,20 @@ export function BudgetsView({ data }: { data: BudgetsPageData }) {
                           <Pencil className="size-4" />
                           Edit
                         </DropdownMenuItem>
+                        {budget.is_recurring && budget.template_id && (
+                          <DropdownMenuItem
+                            onClick={() => handleStopRecurring(budget)}
+                          >
+                            <RefreshCwOff className="size-4" />
+                            Stop recurring
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
                           variant="destructive"
                           onClick={() => setDeleting(budget)}
                         >
                           <Trash2 className="size-4" />
-                          Delete
+                          Delete this period
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -261,7 +374,12 @@ export function BudgetsView({ data }: { data: BudgetsPageData }) {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Spent</p>
-                    <p className={cn("mt-0.5 text-sm font-medium tabular-nums", meta.text)}>
+                    <p
+                      className={cn(
+                        "mt-0.5 text-sm font-medium tabular-nums",
+                        meta.text
+                      )}
+                    >
                       {formatINR(budget.spent)}
                     </p>
                   </div>
@@ -270,7 +388,8 @@ export function BudgetsView({ data }: { data: BudgetsPageData }) {
                     <p
                       className={cn(
                         "mt-0.5 text-sm font-medium tabular-nums",
-                        budget.remaining < 0 && "text-rose-600 dark:text-rose-400"
+                        budget.remaining < 0 &&
+                          "text-rose-600 dark:text-rose-400"
                       )}
                     >
                       {formatINR(budget.remaining)}
@@ -287,13 +406,24 @@ export function BudgetsView({ data }: { data: BudgetsPageData }) {
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                     <div
-                      className={cn("h-full rounded-full transition-all", meta.bar)}
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        meta.bar
+                      )}
                       style={{
                         width: `${Math.min(100, Math.max(budget.usagePercent, 0))}%`,
                       }}
                     />
                   </div>
                 </div>
+
+                {budget.category_id && (
+                  <BudgetProgressionPanel
+                    categoryId={budget.category_id}
+                    period={period}
+                    defaultYear={year}
+                  />
+                )}
               </div>
             );
           })}
@@ -318,7 +448,9 @@ export function BudgetsView({ data }: { data: BudgetsPageData }) {
         title="Delete budget?"
         description={
           deleting
-            ? `Remove the budget for "${deleting.category?.name ?? "category"}"?`
+            ? deleting.is_recurring
+              ? `Remove this period’s budget for "${deleting.category?.name ?? "category"}"? Recurring will still create future periods until you stop it.`
+              : `Remove the budget for "${deleting.category?.name ?? "category"}"?`
             : undefined
         }
         pending={pending}
