@@ -11,6 +11,7 @@ import {
   Target,
   CalendarDays,
   FileBarChart,
+  Calculator,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -35,6 +36,7 @@ export const mainNav: NavItem[] = [
   { title: "Goals", href: "/goals", icon: Target },
   { title: "Calendar", href: "/calendar", icon: CalendarDays },
   { title: "Reports", href: "/reports", icon: FileBarChart },
+  { title: "Calculators", href: "/calculator", icon: Calculator },
 ];
 
 export const bottomNav: NavItem[] = [
