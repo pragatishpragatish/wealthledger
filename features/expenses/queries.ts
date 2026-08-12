@@ -5,6 +5,7 @@ import type {
   Account,
   AllocationPoint,
   Category,
+  CreditCard,
   Tag,
   Transaction,
 } from "@/types";
@@ -23,6 +24,10 @@ const CHART_COLORS = [
 export type ExpenseRow = Omit<Transaction, "tags"> & {
   category: Pick<Category, "id" | "name" | "color" | "icon"> | null;
   account: Pick<Account, "id" | "name" | "bank_name"> | null;
+  credit_card: Pick<
+    CreditCard,
+    "id" | "bank" | "card_name" | "last_four"
+  > | null;
   tags: Pick<Tag, "id" | "name" | "color">[];
 };
 
@@ -55,6 +60,10 @@ export type ExpensesPageData = {
   expenses: ExpenseRow[];
   analytics: ExpenseAnalytics;
   accounts: Pick<Account, "id" | "name" | "bank_name" | "current_balance">[];
+  creditCards: Pick<
+    CreditCard,
+    "id" | "bank" | "card_name" | "last_four" | "outstanding" | "credit_limit"
+  >[];
   categories: Pick<Category, "id" | "name" | "color" | "icon">[];
 };
 
@@ -65,6 +74,7 @@ type TagJoin = {
 function mapExpenseRow(row: Record<string, unknown>): ExpenseRow {
   const category = row.category as ExpenseRow["category"];
   const account = row.account as ExpenseRow["account"];
+  const creditCard = row.credit_card as ExpenseRow["credit_card"];
   const tagJoins = (row.transaction_tags as TagJoin[] | null) ?? [];
   const tags = tagJoins
     .map((j) => j.tags)
@@ -75,6 +85,7 @@ function mapExpenseRow(row: Record<string, unknown>): ExpenseRow {
     amount: Number(row.amount),
     category: category ?? null,
     account: account ?? null,
+    credit_card: creditCard ?? null,
     tags,
   };
 }
@@ -89,6 +100,7 @@ export async function getExpenses(limit = 100): Promise<ExpenseRow[]> {
       *,
       category:categories(id, name, color, icon),
       account:accounts!account_id(id, name, bank_name),
+      credit_card:credit_cards!credit_card_id(id, bank, card_name, last_four),
       transaction_tags(tags(id, name, color))
     `
     )
@@ -245,25 +257,34 @@ export async function getExpenseAnalytics(): Promise<ExpenseAnalytics> {
 export async function getExpensesPageData(): Promise<ExpensesPageData> {
   const { supabase, user } = await requireUser();
 
-  const [expenses, analytics, accountsRes, categoriesRes] = await Promise.all([
-    getExpenses(),
-    getExpenseAnalytics(),
-    supabase
-      .from("accounts")
-      .select("id, name, bank_name, current_balance")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .order("name"),
-    supabase
-      .from("categories")
-      .select("id, name, color, icon")
-      .eq("user_id", user.id)
-      .eq("kind", "expense")
-      .order("sort_order")
-      .order("name"),
-  ]);
+  const [expenses, analytics, accountsRes, cardsRes, categoriesRes] =
+    await Promise.all([
+      getExpenses(),
+      getExpenseAnalytics(),
+      supabase
+        .from("accounts")
+        .select("id, name, bank_name, current_balance")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("name"),
+      supabase
+        .from("credit_cards")
+        .select("id, bank, card_name, last_four, outstanding, credit_limit")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("bank")
+        .order("card_name"),
+      supabase
+        .from("categories")
+        .select("id, name, color, icon")
+        .eq("user_id", user.id)
+        .eq("kind", "expense")
+        .order("sort_order")
+        .order("name"),
+    ]);
 
   if (accountsRes.error) throw new Error(accountsRes.error.message);
+  if (cardsRes.error) throw new Error(cardsRes.error.message);
   if (categoriesRes.error) throw new Error(categoriesRes.error.message);
 
   return {
@@ -272,6 +293,11 @@ export async function getExpensesPageData(): Promise<ExpensesPageData> {
     accounts: (accountsRes.data ?? []).map((a) => ({
       ...a,
       current_balance: Number(a.current_balance),
+    })),
+    creditCards: (cardsRes.data ?? []).map((c) => ({
+      ...c,
+      outstanding: Number(c.outstanding),
+      credit_limit: Number(c.credit_limit),
     })),
     categories: categoriesRes.data ?? [],
   };

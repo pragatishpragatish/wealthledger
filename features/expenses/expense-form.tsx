@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
+import { useEffect, useMemo, useTransition } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -22,7 +22,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -41,6 +43,13 @@ type AccountOption = {
   bank_name: string;
 };
 
+type CreditCardOption = {
+  id: string;
+  bank: string;
+  card_name: string;
+  last_four: string | null;
+};
+
 type CategoryOption = {
   id: string;
   name: string;
@@ -51,8 +60,29 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   expense?: ExpenseRow | null;
   accounts: AccountOption[];
+  creditCards: CreditCardOption[];
   categories: CategoryOption[];
 };
+
+function sourceValue(accountId: string | null, cardId: string | null) {
+  if (cardId) return `card:${cardId}`;
+  if (accountId) return `account:${accountId}`;
+  return null;
+}
+
+function parseSource(value: string | null): {
+  account_id: string | null;
+  credit_card_id: string | null;
+} {
+  if (!value) return { account_id: null, credit_card_id: null };
+  if (value.startsWith("card:")) {
+    return { account_id: null, credit_card_id: value.slice(5) };
+  }
+  if (value.startsWith("account:")) {
+    return { account_id: value.slice(8), credit_card_id: null };
+  }
+  return { account_id: null, credit_card_id: null };
+}
 
 function defaults(expense?: ExpenseRow | null): ExpenseFormValues {
   if (expense) {
@@ -60,7 +90,8 @@ function defaults(expense?: ExpenseRow | null): ExpenseFormValues {
       date: expense.date,
       amount: expense.amount,
       category_id: expense.category_id,
-      account_id: expense.account_id ?? "",
+      account_id: expense.account_id ?? null,
+      credit_card_id: expense.credit_card_id ?? null,
       merchant: expense.merchant,
       payment_method: expense.payment_method,
       notes: expense.notes,
@@ -74,7 +105,8 @@ function defaults(expense?: ExpenseRow | null): ExpenseFormValues {
     date: toDateString(new Date()),
     amount: 0,
     category_id: null,
-    account_id: "",
+    account_id: null,
+    credit_card_id: null,
     merchant: null,
     payment_method: null,
     notes: null,
@@ -85,15 +117,39 @@ function defaults(expense?: ExpenseRow | null): ExpenseFormValues {
   };
 }
 
+function cardLabel(c: CreditCardOption) {
+  const last = c.last_four ? ` ·••• ${c.last_four}` : "";
+  return `${c.card_name} (${c.bank})${last}`;
+}
+
 export function ExpenseForm({
   open,
   onOpenChange,
   expense,
   accounts,
+  creditCards,
   categories,
 }: Props) {
   const isEdit = Boolean(expense);
   const [pending, startTransition] = useTransition();
+  const canSubmit = accounts.length > 0 || creditCards.length > 0;
+
+  const sourceItems = useMemo(() => {
+    const items: { value: string; label: string }[] = [];
+    for (const a of accounts) {
+      items.push({
+        value: `account:${a.id}`,
+        label: `${a.name} · ${a.bank_name}`,
+      });
+    }
+    for (const c of creditCards) {
+      items.push({
+        value: `card:${c.id}`,
+        label: `Card · ${cardLabel(c)}`,
+      });
+    }
+    return items;
+  }, [accounts, creditCards]);
 
   const form = useForm<
     z.input<typeof expenseSchema>,
@@ -105,6 +161,12 @@ export function ExpenseForm({
   });
 
   const isRecurring = form.watch("is_recurring");
+  const accountId = form.watch("account_id");
+  const creditCardId = form.watch("credit_card_id");
+  const paidFrom = sourceValue(
+    accountId && accountId !== "" ? accountId : null,
+    creditCardId && creditCardId !== "" ? creditCardId : null
+  );
 
   useEffect(() => {
     if (open) form.reset(defaults(expense));
@@ -133,16 +195,15 @@ export function ExpenseForm({
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit expense" : "Add expense"}</DialogTitle>
           <DialogDescription>
-            Log spending with merchant, payment method and optional receipt
-            link.
+            Log spending from a bank account or credit card.
           </DialogDescription>
         </DialogHeader>
 
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="grid max-h-[70vh] gap-4 overflow-y-auto py-1"
-         autoComplete="off"
-         >
+          autoComplete="off"
+        >
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="expense-amount">Amount (₹)</Label>
@@ -206,34 +267,49 @@ export function ExpenseForm({
               />
             </div>
             <div className="space-y-2">
-              <Label>Account</Label>
-              <Controller
-                control={form.control}
-                name="account_id"
-                render={({ field }) => (
-                  <Select
-                    value={field.value || null}
-                    onValueChange={(v) => {
-                      if (v != null) field.onChange(v);
-                    }}
-                    items={accounts.map((a) => ({
-                      value: a.id,
-                      label: `${a.name} · ${a.bank_name}`,
-                    }))}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select account" />
-                    </SelectTrigger>
-                    <SelectContent>
+              <Label>Paid from</Label>
+              <Select
+                value={paidFrom}
+                onValueChange={(v) => {
+                  const parsed = parseSource(v);
+                  form.setValue("account_id", parsed.account_id, {
+                    shouldValidate: true,
+                  });
+                  form.setValue("credit_card_id", parsed.credit_card_id, {
+                    shouldValidate: true,
+                  });
+                  if (parsed.credit_card_id && !form.getValues("payment_method")) {
+                    form.setValue("payment_method", "card");
+                  }
+                }}
+                items={sourceItems}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Account or credit card" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Bank accounts</SelectLabel>
                       {accounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
+                        <SelectItem key={a.id} value={`account:${a.id}`}>
                           {a.name} · {a.bank_name}
                         </SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
+                    </SelectGroup>
+                  )}
+                  {creditCards.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Credit cards</SelectLabel>
+                      {creditCards.map((c) => (
+                        <SelectItem key={c.id} value={`card:${c.id}`}>
+                          {cardLabel(c)}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
+                </SelectContent>
+              </Select>
               {form.formState.errors.account_id && (
                 <p className="text-xs text-destructive">
                   {form.formState.errors.account_id.message}
@@ -378,7 +454,7 @@ export function ExpenseForm({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={pending || accounts.length === 0}>
+            <Button type="submit" disabled={pending || !canSubmit}>
               {pending && <Loader2 className="size-4 animate-spin" />}
               {isEdit ? "Save changes" : "Add expense"}
             </Button>

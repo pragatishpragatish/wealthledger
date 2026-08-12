@@ -53,11 +53,12 @@ const methodLabel = Object.fromEntries(
 ) as Record<string, string>;
 
 export function ExpensesView({ data }: { data: ExpensesPageData }) {
-  const { expenses, analytics, accounts, categories } = data;
+  const { expenses, analytics, accounts, creditCards, categories } = data;
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ExpenseRow | null>(null);
   const [deleting, setDeleting] = useState<ExpenseRow | null>(null);
   const [pending, startTransition] = useTransition();
+  const canAdd = accounts.length > 0 || creditCards.length > 0;
 
   function openCreate() {
     setEditing(null);
@@ -88,16 +89,16 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
         title="Expenses"
         description="Categorized spending with merchants, budgets and analytics."
         action={
-          <Button onClick={openCreate} disabled={accounts.length === 0}>
+          <Button onClick={openCreate} disabled={!canAdd}>
             <Plus className="size-4" />
             Add expense
           </Button>
         }
       />
 
-      {accounts.length === 0 && (
+      {!canAdd && (
         <p className="rounded-2xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
-          Add a bank account first before recording expenses.
+          Add a bank account or credit card before recording expenses.
         </p>
       )}
 
@@ -218,7 +219,7 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
           title="No expenses yet"
           description="Log your first expense to unlock spending analytics."
           action={
-            <Button onClick={openCreate} disabled={accounts.length === 0}>
+            <Button onClick={openCreate} disabled={!canAdd}>
               <Plus className="size-4" />
               Add expense
             </Button>
@@ -232,7 +233,7 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
                 <TableHead>Date</TableHead>
                 <TableHead>Merchant</TableHead>
                 <TableHead className="hidden md:table-cell">Category</TableHead>
-                <TableHead className="hidden lg:table-cell">Method</TableHead>
+                <TableHead className="hidden lg:table-cell">Paid from</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
@@ -263,9 +264,14 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
                     {row.category?.name ?? "Uncategorized"}
                   </TableCell>
                   <TableCell className="hidden text-muted-foreground lg:table-cell">
-                    {row.payment_method
-                      ? methodLabel[row.payment_method] ?? row.payment_method
-                      : "—"}
+                    {row.credit_card
+                      ? `${row.credit_card.card_name} · ${row.credit_card.bank}`
+                      : row.account
+                        ? `${row.account.name} · ${row.account.bank_name}`
+                        : row.payment_method
+                          ? methodLabel[row.payment_method] ??
+                            row.payment_method
+                          : "—"}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums text-rose-700 dark:text-rose-400">
                     {formatINR(row.amount)}
@@ -308,6 +314,7 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
           onOpenChange={setFormOpen}
           expense={editing}
           accounts={accounts}
+          creditCards={creditCards}
           categories={categories}
         />
       ) : null}
@@ -318,7 +325,11 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
           if (!open) setDeleting(null);
         }}
         title="Delete this expense?"
-        description="Account balance will be restored. This cannot be undone."
+        description={
+          deleting?.credit_card_id
+            ? "Credit card outstanding will be reduced. This cannot be undone."
+            : "Account balance will be restored. This cannot be undone."
+        }
         pending={pending}
         onConfirm={handleDelete}
       />

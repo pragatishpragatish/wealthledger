@@ -21,7 +21,18 @@ export const expenseSchema = z
     date: dateStringSchema,
     amount: positiveMoneySchema,
     category_id: z.string().uuid("Select a category").optional().nullable(),
-    account_id: z.string().uuid("Select an account"),
+    account_id: z
+      .string()
+      .uuid("Select an account")
+      .optional()
+      .nullable()
+      .or(z.literal("")),
+    credit_card_id: z
+      .string()
+      .uuid("Select a credit card")
+      .optional()
+      .nullable()
+      .or(z.literal("")),
     merchant: optionalNullableString,
     payment_method: z.enum(paymentValues).optional().nullable(),
     notes: optionalNullableString,
@@ -42,6 +53,27 @@ export const expenseSchema = z
     recurring_frequency: z.enum(frequencyValues).optional().nullable(),
   })
   .superRefine((data, ctx) => {
+    const accountId =
+      data.account_id && data.account_id !== "" ? data.account_id : null;
+    const cardId =
+      data.credit_card_id && data.credit_card_id !== ""
+        ? data.credit_card_id
+        : null;
+
+    if (!accountId && !cardId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Select a bank account or credit card",
+        path: ["account_id"],
+      });
+    }
+    if (accountId && cardId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Choose either an account or a credit card, not both",
+        path: ["account_id"],
+      });
+    }
     if (data.is_recurring && !data.recurring_frequency) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -49,6 +81,15 @@ export const expenseSchema = z
         path: ["recurring_frequency"],
       });
     }
-  });
+  })
+  .transform((data) => ({
+    ...data,
+    account_id:
+      data.account_id && data.account_id !== "" ? data.account_id : null,
+    credit_card_id:
+      data.credit_card_id && data.credit_card_id !== ""
+        ? data.credit_card_id
+        : null,
+  }));
 
 export type ExpenseFormValues = z.infer<typeof expenseSchema>;
