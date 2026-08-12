@@ -3,7 +3,18 @@ import { ExpensesView } from "@/features/expenses/expenses-view";
 
 export const metadata = { title: "Expenses · WealthLedger" };
 
-export default async function ExpensesPage() {
-  const data = await getExpensesPageData();
+type SearchParams = Promise<{
+  range?: string;
+}>;
+
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const data = await getExpensesPageData({
+    chartRangeParam: params.range,
+  });
   return <ExpensesView data={data} />;
 }

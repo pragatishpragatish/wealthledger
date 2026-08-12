@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   CalendarRange,
@@ -28,6 +29,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
@@ -53,12 +61,25 @@ const methodLabel = Object.fromEntries(
 ) as Record<string, string>;
 
 export function ExpensesView({ data }: { data: ExpensesPageData }) {
+  const router = useRouter();
   const { expenses, analytics, accounts, creditCards, categories } = data;
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ExpenseRow | null>(null);
   const [deleting, setDeleting] = useState<ExpenseRow | null>(null);
   const [pending, startTransition] = useTransition();
   const canAdd = accounts.length > 0 || creditCards.length > 0;
+
+  function setChartRange(value: string) {
+    const currentMonthKey = analytics.chartRangeOptions.find(
+      (o) => o.value !== "ytd"
+    )?.value;
+    const params = new URLSearchParams();
+    if (value === "ytd" || value !== currentMonthKey) {
+      params.set("range", value);
+    }
+    const qs = params.toString();
+    router.push(qs ? `/expenses?${qs}` : "/expenses");
+  }
 
   function openCreate() {
     setEditing(null);
@@ -124,19 +145,45 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
         />
       </div>
 
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
+          Charts
+        </h2>
+        <Select
+          value={analytics.chartRange.key}
+          onValueChange={(v) => {
+            if (v != null) setChartRange(v);
+          }}
+          items={Object.fromEntries(
+            analytics.chartRangeOptions.map((o) => [o.value, o.label])
+          )}
+        >
+          <SelectTrigger className="w-full sm:w-[14rem]">
+            <SelectValue placeholder="Select range" />
+          </SelectTrigger>
+          <SelectContent>
+            {analytics.chartRangeOptions.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-2">
         <AllocationChart
-          title="Spending by category (YTD)"
+          title={`Spending by category (${analytics.chartLabel})`}
           data={analytics.categoryBreakdown}
         />
 
         <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
           <h3 className="mb-4 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-            Top merchants
+            Top merchants ({analytics.chartLabel})
           </h3>
           {analytics.topMerchants.length === 0 ? (
             <p className="py-12 text-center text-sm text-muted-foreground">
-              No merchant data yet
+              No merchant data for this range
             </p>
           ) : (
             <ul className="space-y-3">
@@ -169,7 +216,7 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
       {analytics.budgetComparisons.length > 0 && (
         <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
           <h3 className="mb-4 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-            Budget vs spent (this month)
+            Budget vs spent ({analytics.chartLabel})
           </h3>
           <ul className="space-y-4">
             {analytics.budgetComparisons.map((b) => {

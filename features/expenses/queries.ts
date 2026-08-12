@@ -1,6 +1,13 @@
-import { endOfYear, startOfWeek, startOfYear } from "date-fns";
+import { endOfMonth, endOfYear, startOfMonth, startOfWeek, startOfYear } from "date-fns";
 import { requireUser } from "@/lib/auth";
-import { getCurrentMonthRange, toDateString } from "@/utils/date";
+import {
+  formatMonthKeyLabel,
+  getCurrentMonthRange,
+  getMonthKey,
+  parseMonthKey,
+  shiftMonthKey,
+  toDateString,
+} from "@/utils/date";
 import type {
   Account,
   AllocationPoint,
@@ -45,6 +52,16 @@ export type BudgetComparison = {
   percent: number;
 };
 
+/** Chart/analytics window — defaults to the current calendar month. */
+export type ExpenseChartRange =
+  | { kind: "month"; year: number; month: number; key: string }
+  | { kind: "ytd"; year: number; key: "ytd" };
+
+export type ExpenseChartRangeOption = {
+  value: string;
+  label: string;
+};
+
 export type ExpenseAnalytics = {
   dailyTotal: number;
   weeklyTotal: number;
@@ -54,6 +71,9 @@ export type ExpenseAnalytics = {
   categoryBreakdown: AllocationPoint[];
   topMerchants: MerchantSpend[];
   budgetComparisons: BudgetComparison[];
+  chartRange: ExpenseChartRange;
+  chartLabel: string;
+  chartRangeOptions: ExpenseChartRangeOption[];
 };
 
 export type ExpensesPageData = {
@@ -70,6 +90,72 @@ export type ExpensesPageData = {
 type TagJoin = {
   tags: Pick<Tag, "id" | "name" | "color"> | null;
 };
+
+export function parseExpenseChartRange(
+  param?: string | null
+): ExpenseChartRange {
+  const now = new Date();
+  const year = now.getFullYear();
+
+  if (param === "ytd") {
+    return { kind: "ytd", year, key: "ytd" };
+  }
+
+  if (param && parseMonthKey(param)) {
+    const [y, m] = param.split("-").map(Number);
+    return { kind: "month", year: y, month: m, key: param };
+  }
+
+  const key = getMonthKey(now);
+  return {
+    kind: "month",
+    year,
+    month: now.getMonth() + 1,
+    key,
+  };
+}
+
+function chartDateBounds(range: ExpenseChartRange): {
+  start: string;
+  end: string;
+} {
+  const now = new Date();
+  if (range.kind === "ytd") {
+    return {
+      start: toDateString(startOfYear(new Date(range.year, 0, 1))),
+      end: toDateString(
+        range.year === now.getFullYear()
+          ? now
+          : endOfYear(new Date(range.year, 0, 1))
+      ),
+    };
+  }
+  const d = new Date(range.year, range.month - 1, 1);
+  return {
+    start: toDateString(startOfMonth(d)),
+    end: toDateString(endOfMonth(d)),
+  };
+}
+
+function chartRangeLabel(range: ExpenseChartRange): string {
+  if (range.kind === "ytd") return `YTD ${range.year}`;
+  return formatMonthKeyLabel(range.key);
+}
+
+function buildChartRangeOptions(now = new Date()): ExpenseChartRangeOption[] {
+  const options: ExpenseChartRangeOption[] = [
+    { value: "ytd", label: `YTD ${now.getFullYear()}` },
+  ];
+  let key = getMonthKey(now);
+  for (let i = 0; i < 12; i++) {
+    options.push({
+      value: key,
+      label: formatMonthKeyLabel(key),
+    });
+    key = shiftMonthKey(key, -1);
+  }
+  return options;
+}
 
 function mapExpenseRow(row: Record<string, unknown>): ExpenseRow {
   const category = row.category as ExpenseRow["category"];
@@ -116,23 +202,37 @@ export async function getExpenses(limit = 100): Promise<ExpenseRow[]> {
   );
 }
 
-export async function getExpenseAnalytics(): Promise<ExpenseAnalytics> {
+export async function getExpenseAnalytics(opts?: {
+  chartRangeParam?: string | null;
+}): Promise<ExpenseAnalytics> {
   const { supabase, user } = await requireUser();
   const now = new Date();
+  const chartRange = parseExpenseChartRange(opts?.chartRangeParam);
+  const chartBounds = chartDateBounds(chartRange);
+
   const today = toDateString(now);
   const weekStart = toDateString(startOfWeek(now, { weekStartsOn: 1 }));
   const { start: monthStart, end: monthEnd } = getCurrentMonthRange();
   const yearStart = toDateString(startOfYear(now));
   const yearEnd = toDateString(endOfYear(now));
 
-  const [yearRes, catsRes, budgetsRes] = await Promise.all([
+  const fetchStart =
+    chartBounds.start < yearStart ? chartBounds.start : yearStart;
+  const fetchEnd = chartBounds.end > yearEnd ? chartBounds.end : yearEnd;
+
+  const budgetYear =
+    chartRange.kind === "month" ? chartRange.year : now.getFullYear();
+  const budgetMonth =
+    chartRange.kind === "month" ? chartRange.month : now.getMonth() + 1;
+
+  const [txRes, catsRes, budgetsRes] = await Promise.all([
     supabase
       .from("transactions")
       .select("id, amount, date, category_id, merchant")
       .eq("user_id", user.id)
       .eq("type", "expense")
-      .gte("date", yearStart)
-      .lte("date", yearEnd),
+      .gte("date", fetchStart)
+      .lte("date", fetchEnd),
     supabase
       .from("categories")
       .select("id, name, color")
@@ -148,14 +248,14 @@ export async function getExpenseAnalytics(): Promise<ExpenseAnalytics> {
       )
       .eq("user_id", user.id)
       .eq("period", "monthly")
-      .eq("year", now.getFullYear())
-      .eq("month", now.getMonth() + 1),
+      .eq("year", budgetYear)
+      .eq("month", budgetMonth),
   ]);
 
-  if (yearRes.error) throw new Error(yearRes.error.message);
+  if (txRes.error) throw new Error(txRes.error.message);
   if (catsRes.error) throw new Error(catsRes.error.message);
 
-  const rows = yearRes.data ?? [];
+  const rows = txRes.data ?? [];
   const categories = catsRes.data ?? [];
   const catMap = new Map(categories.map((c) => [c.id, c]));
 
@@ -167,11 +267,12 @@ export async function getExpenseAnalytics(): Promise<ExpenseAnalytics> {
 
   const byCat = new Map<string, number>();
   const byMerchant = new Map<string, { total: number; count: number }>();
+  const chartSpendByCat = new Map<string, number>();
 
   for (const tx of rows) {
     const amount = Number(tx.amount);
-    yearlyTotal += amount;
 
+    if (tx.date >= yearStart && tx.date <= yearEnd) yearlyTotal += amount;
     if (tx.date === today) dailyTotal += amount;
     if (tx.date >= weekStart && tx.date <= today) weeklyTotal += amount;
     if (tx.date >= monthStart && tx.date <= monthEnd) {
@@ -179,9 +280,20 @@ export async function getExpenseAnalytics(): Promise<ExpenseAnalytics> {
       monthCount += 1;
     }
 
+    const inChart =
+      tx.date >= chartBounds.start && tx.date <= chartBounds.end;
+    if (!inChart) continue;
+
     const cat = tx.category_id ? catMap.get(tx.category_id) : null;
     const catName = cat?.name ?? "Uncategorized";
     byCat.set(catName, (byCat.get(catName) ?? 0) + amount);
+
+    if (tx.category_id) {
+      chartSpendByCat.set(
+        tx.category_id,
+        (chartSpendByCat.get(tx.category_id) ?? 0) + amount
+      );
+    }
 
     const merchant = (tx.merchant ?? "").trim() || "Unknown";
     const prev = byMerchant.get(merchant) ?? { total: 0, count: 0 };
@@ -210,37 +322,29 @@ export async function getExpenseAnalytics(): Promise<ExpenseAnalytics> {
     .sort((a, b) => b.total - a.total)
     .slice(0, 5);
 
-  // Prefer live spent from month transactions for budget comparison
-  const monthSpendByCat = new Map<string, number>();
-  for (const tx of rows.filter(
-    (t) => t.date >= monthStart && t.date <= monthEnd
-  )) {
-    if (!tx.category_id) continue;
-    monthSpendByCat.set(
-      tx.category_id,
-      (monthSpendByCat.get(tx.category_id) ?? 0) + Number(tx.amount)
-    );
-  }
-
   const budgetRows = budgetsRes.data ?? [];
-  const budgetComparisons: BudgetComparison[] = budgetRows.map((b) => {
-    const raw = b.category as
-      | { id: string; name: string }
-      | { id: string; name: string }[]
-      | null;
-    const cat = Array.isArray(raw) ? (raw[0] ?? null) : raw;
-    const budgetAmount = Number(b.amount);
-    const spent =
-      (b.category_id ? monthSpendByCat.get(b.category_id) : undefined) ??
-      Number(b.spent);
-    return {
-      id: b.id,
-      categoryName: cat?.name ?? "Overall",
-      budgetAmount,
-      spent,
-      percent: budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0,
-    };
-  });
+  const budgetComparisons: BudgetComparison[] =
+    chartRange.kind === "month"
+      ? budgetRows.map((b) => {
+          const raw = b.category as
+            | { id: string; name: string }
+            | { id: string; name: string }[]
+            | null;
+          const cat = Array.isArray(raw) ? (raw[0] ?? null) : raw;
+          const budgetAmount = Number(b.amount);
+          const spent =
+            (b.category_id
+              ? chartSpendByCat.get(b.category_id)
+              : undefined) ?? Number(b.spent);
+          return {
+            id: b.id,
+            categoryName: cat?.name ?? "Overall",
+            budgetAmount,
+            spent,
+            percent: budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0,
+          };
+        })
+      : [];
 
   return {
     dailyTotal,
@@ -251,16 +355,21 @@ export async function getExpenseAnalytics(): Promise<ExpenseAnalytics> {
     categoryBreakdown,
     topMerchants,
     budgetComparisons,
+    chartRange,
+    chartLabel: chartRangeLabel(chartRange),
+    chartRangeOptions: buildChartRangeOptions(now),
   };
 }
 
-export async function getExpensesPageData(): Promise<ExpensesPageData> {
+export async function getExpensesPageData(opts?: {
+  chartRangeParam?: string | null;
+}): Promise<ExpensesPageData> {
   const { supabase, user } = await requireUser();
 
   const [expenses, analytics, accountsRes, cardsRes, categoriesRes] =
     await Promise.all([
       getExpenses(),
-      getExpenseAnalytics(),
+      getExpenseAnalytics({ chartRangeParam: opts?.chartRangeParam }),
       supabase
         .from("accounts")
         .select("id, name, bank_name, current_balance")
