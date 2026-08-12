@@ -49,7 +49,7 @@ export function Header({
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border/60 bg-background/80 px-4 backdrop-blur-xl sm:px-6">
+    <header className="sticky top-0 z-40 flex min-h-14 items-center gap-2 border-b border-border/60 bg-background/80 px-3 pt-safe backdrop-blur-xl sm:min-h-16 sm:gap-3 sm:px-6">
       <Button
         variant="ghost"
         size="icon"
@@ -61,7 +61,7 @@ export function Header({
       </Button>
 
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-[min(18rem,88vw)] p-0">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <Sidebar onNavigate={() => setMobileNavOpen(false)} />
         </SheetContent>

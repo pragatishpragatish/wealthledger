@@ -28,11 +28,11 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
-      <h3 className="mb-4 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+    <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
+      <h3 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase sm:mb-4">
         {title}
       </h3>
-      <div className="h-64 w-full">{children}</div>
+      <div className="h-52 w-full min-w-0 sm:h-64">{children}</div>
     </div>
   );
 }
@@ -60,7 +60,7 @@ export function CashFlowChart({ data }: { data: ChartPoint[] }) {
             tick={{ fontSize: 11 }}
             stroke="currentColor"
             className="text-muted-foreground"
-            width={56}
+            width={44}
           />
           <ChartTooltip />
           <Area
@@ -94,7 +94,7 @@ export function IncomeExpenseChart({ data }: { data: ChartPoint[] }) {
             tick={{ fontSize: 11 }}
             stroke="currentColor"
             className="text-muted-foreground"
-            width={56}
+            width={44}
           />
           <ChartTooltip />
           <Legend />
@@ -133,7 +133,7 @@ export function SpendingTrendChart({ data }: { data: ChartPoint[] }) {
             tick={{ fontSize: 11 }}
             stroke="currentColor"
             className="text-muted-foreground"
-            width={56}
+            width={44}
           />
           <ChartTooltip />
           <Line
@@ -214,7 +214,7 @@ export function NetWorthTrendChart({ data }: { data: ChartPoint[] }) {
             tick={{ fontSize: 11 }}
             stroke="currentColor"
             className="text-muted-foreground"
-            width={56}
+            width={44}
           />
           <ChartTooltip />
           <Area

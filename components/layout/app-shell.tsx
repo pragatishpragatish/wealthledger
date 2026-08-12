@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { createClient } from "@/lib/supabase/server";
 import { InvestmentReminderHost } from "@/features/notifications/investment-reminder-host";
 import type { Profile } from "@/types";
@@ -14,7 +15,6 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   let unreadCount = 0;
 
   if (user) {
-    // Fast path: profile + unread only (no reminder work on critical path)
     const [{ data: profileData }, { count }] = await Promise.all([
       supabase
         .from("profiles")
@@ -33,12 +33,15 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-svh bg-background">
-      <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-64">
         <Sidebar />
       </div>
-      <div className="flex min-h-svh flex-1 flex-col lg:pl-64">
+      <div className="flex min-h-svh min-w-0 flex-1 flex-col lg:pl-64">
         <Header profile={profile} unreadCount={unreadCount} />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="min-w-0 flex-1 px-3 py-4 pb-mobile-nav sm:px-6 sm:py-6 lg:px-8 lg:pb-6">
+          {children}
+        </main>
+        <MobileBottomNav />
       </div>
       {user ? <InvestmentReminderHost /> : null}
     </div>

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/shared/theme-provider";
@@ -27,6 +27,21 @@ export const metadata: Metadata = {
   },
   description:
     "Personal finance dashboard for Indian users — net worth, loans, investments, and cash flow in INR.",
+  appleWebApp: {
+    capable: true,
+    title: "WealthLedger",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7faf9" },
+    { media: "(prefers-color-scheme: dark)", color: "#1a2228" },
+  ],
 };
 
 export default function RootLayout({
@@ -41,7 +56,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           {children}
-          <Toaster richColors position="top-right" closeButton />
+          <Toaster richColors position="top-center" closeButton />
         </ThemeProvider>
       </body>
     </html>

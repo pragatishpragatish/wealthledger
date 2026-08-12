@@ -39,6 +39,15 @@ export const mainNav: NavItem[] = [
   { title: "Calculators", href: "/calculator", icon: Calculator },
 ];
 
+/** Primary destinations shown in the mobile bottom bar. */
+export const mobileTabNav: NavItem[] = [
+  { title: "Home", href: "/", icon: LayoutDashboard },
+  { title: "Txns", href: "/transactions", icon: ArrowLeftRight },
+  { title: "Spend", href: "/expenses", icon: Wallet },
+  { title: "Invest", href: "/investments", icon: LineChart },
+  { title: "Budgets", href: "/budgets", icon: PiggyBank },
+];
+
 export const bottomNav: NavItem[] = [
   { title: "Settings", href: "/settings", icon: Settings },
 ];

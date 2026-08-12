@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/page-header";
+import { TableScroll } from "@/components/shared/table-scroll";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
 import dynamic from "next/dynamic";
@@ -273,7 +274,7 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
+        <TableScroll>
           <Table>
             <TableHeader>
               <TableRow>
@@ -288,7 +289,7 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
             <TableBody>
               {expenses.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="tabular-nums">
+                  <TableCell className="whitespace-nowrap tabular-nums">
                     {formatDisplayDate(row.date)}
                   </TableCell>
                   <TableCell>
@@ -320,7 +321,7 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
                             row.payment_method
                           : "—"}
                   </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums text-rose-700 dark:text-rose-400">
+                  <TableCell className="whitespace-nowrap text-right font-medium tabular-nums text-rose-700 dark:text-rose-400">
                     {formatINR(row.amount)}
                   </TableCell>
                   <TableCell>
@@ -352,7 +353,7 @@ export function ExpensesView({ data }: { data: ExpensesPageData }) {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </TableScroll>
       )}
 
       {formOpen ? (

@@ -533,6 +533,7 @@ export function TransactionsView({
         />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
+          <div className="overflow-x-auto overscroll-x-contain">
           <Table>
             <TableHeader>
               <TableRow>
@@ -643,6 +644,7 @@ export function TransactionsView({
               })}
             </TableBody>
           </Table>
+          </div>
 
           <div className="flex items-center justify-between gap-3 border-t px-4 py-3">
             <Button

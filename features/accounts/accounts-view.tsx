@@ -178,6 +178,7 @@ export function AccountsView({
         />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
+          <div className="overflow-x-auto overscroll-x-contain">
           <Table>
             <TableHeader>
               <TableRow>
@@ -247,6 +248,7 @@ export function AccountsView({
               ))}
             </TableBody>
           </Table>
+          </div>
         </div>
       )}
 
