@@ -89,7 +89,7 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <SummaryTile
           title="Portfolio value"
           value={formatINR(summary.portfolioValue)}
@@ -117,8 +117,10 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <AllocationChart title="Allocation by type" data={summary.allocation} />
-        <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+        <div className="min-w-0">
+          <AllocationChart title="Allocation by type" data={summary.allocation} />
+        </div>
+        <div className="min-w-0 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
           <h3 className="mb-4 text-sm font-medium tracking-wide text-muted-foreground uppercase">
             Holdings ({summary.count})
           </h3>
@@ -176,131 +178,228 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border/60 text-left text-xs tracking-wide text-muted-foreground uppercase">
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium text-right">Invested</th>
-                  <th className="px-4 py-3 font-medium text-right">Value</th>
-                  <th className="px-4 py-3 font-medium text-right">Gain</th>
-                  <th className="px-4 py-3 font-medium">Details</th>
-                  <th className="px-4 py-3 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
-                {investments.map((inv) => {
-                  const latest = inv.contributions[0];
-                  return (
-                    <tr
-                      key={inv.id}
-                      className="border-b border-border/40 last:border-0"
-                    >
-                      <td className="px-4 py-3">
-                        <p className="font-medium">{inv.name}</p>
-                        {inv.platform && (
-                          <p className="text-xs text-muted-foreground">
-                            {inv.platform}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          <Badge variant="secondary">
-                            {typeLabel[inv.type] ?? inv.type}
-                          </Badge>
-                          {inv.contribution_count > 1 && (
-                            <Badge className="bg-teal-600/15 text-teal-800 dark:text-teal-300">
-                              {inv.contribution_count} entries
-                            </Badge>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        {formatINR(inv.invested_amount)}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums font-medium">
+        <>
+          {/* Mobile: stacked cards */}
+          <div className="space-y-3 md:hidden">
+            {investments.map((inv) => {
+              const latest = inv.contributions[0];
+              return (
+                <div
+                  key={inv.id}
+                  className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{inv.name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {typeLabel[inv.type] ?? inv.type}
+                        {inv.platform ? ` · ${inv.platform}` : ""}
+                      </p>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={<Button variant="ghost" size="icon-sm" />}
+                      >
+                        <MoreHorizontal className="size-4" />
+                        <span className="sr-only">Actions</span>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setContributing(inv)}>
+                          <Plus className="size-4" />
+                          Add money
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setHistoryFor(inv)}>
+                          <History className="size-4" />
+                          View entries
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openEdit(inv)}>
+                          <Pencil className="size-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => setDeleting(inv)}
+                        >
+                          <Trash2 className="size-4" />
+                          Remove
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Value</p>
+                      <p className="font-medium tabular-nums">
                         {formatINR(inv.current_value)}
-                      </td>
-                      <td
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Invested</p>
+                      <p className="tabular-nums">
+                        {formatINR(inv.invested_amount)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Gain</p>
+                      <p
                         className={cn(
-                          "px-4 py-3 text-right tabular-nums",
+                          "tabular-nums",
                           inv.gain >= 0
                             ? "text-emerald-700 dark:text-emerald-400"
                             : "text-rose-600 dark:text-rose-400"
                         )}
                       >
-                        <div>{formatSignedINR(inv.gain)}</div>
-                        <div className="text-xs">
-                          {formatPercent(inv.gain_percent)}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {latest && (
-                          <div>
-                            Last +{formatINR(latest.amount)} ·{" "}
-                            {formatDisplayDate(latest.date)}
-                          </div>
-                        )}
-                        {inv.units > 0 && (
-                          <div>
-                            {inv.units} ×{" "}
-                            {formatINR(inv.current_price, { precise: true })}
-                          </div>
-                        )}
-                        {inv.maturity_date && (
-                          <div>
-                            Matures {formatDisplayDate(inv.maturity_date)}
-                          </div>
-                        )}
-                        {inv.interest_rate != null && (
-                          <div>{formatPercent(inv.interest_rate)} p.a.</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            render={<Button variant="ghost" size="icon-sm" />}
-                          >
-                            <MoreHorizontal className="size-4" />
-                            <span className="sr-only">Actions</span>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => setContributing(inv)}
-                            >
-                              <Plus className="size-4" />
-                              Add money
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setHistoryFor(inv)}
-                            >
-                              <History className="size-4" />
-                              View entries
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEdit(inv)}>
-                              <Pencil className="size-4" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setDeleting(inv)}
-                            >
-                              <Trash2 className="size-4" />
-                              Remove
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {formatSignedINR(inv.gain)}{" "}
+                        <span className="text-xs">
+                          ({formatPercent(inv.gain_percent)})
+                        </span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Entries</p>
+                      <p>{inv.contribution_count || 1}</p>
+                    </div>
+                  </div>
+                  {latest && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Last +{formatINR(latest.amount)} ·{" "}
+                      {formatDisplayDate(latest.date)}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </div>
+
+          {/* Desktop table */}
+          <div className="hidden overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm md:block">
+            <div className="overflow-x-auto overscroll-x-contain">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 text-left text-xs tracking-wide text-muted-foreground uppercase">
+                    <th className="px-4 py-3 font-medium">Name</th>
+                    <th className="px-4 py-3 font-medium">Type</th>
+                    <th className="px-4 py-3 font-medium text-right">Invested</th>
+                    <th className="px-4 py-3 font-medium text-right">Value</th>
+                    <th className="px-4 py-3 font-medium text-right">Gain</th>
+                    <th className="px-4 py-3 font-medium">Details</th>
+                    <th className="px-4 py-3 font-medium" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {investments.map((inv) => {
+                    const latest = inv.contributions[0];
+                    return (
+                      <tr
+                        key={inv.id}
+                        className="border-b border-border/40 last:border-0"
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-medium">{inv.name}</p>
+                          {inv.platform && (
+                            <p className="text-xs text-muted-foreground">
+                              {inv.platform}
+                            </p>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            <Badge variant="secondary">
+                              {typeLabel[inv.type] ?? inv.type}
+                            </Badge>
+                            {inv.contribution_count > 1 && (
+                              <Badge className="bg-teal-600/15 text-teal-800 dark:text-teal-300">
+                                {inv.contribution_count} entries
+                              </Badge>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {formatINR(inv.invested_amount)}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums font-medium">
+                          {formatINR(inv.current_value)}
+                        </td>
+                        <td
+                          className={cn(
+                            "px-4 py-3 text-right tabular-nums",
+                            inv.gain >= 0
+                              ? "text-emerald-700 dark:text-emerald-400"
+                              : "text-rose-600 dark:text-rose-400"
+                          )}
+                        >
+                          <div>{formatSignedINR(inv.gain)}</div>
+                          <div className="text-xs">
+                            {formatPercent(inv.gain_percent)}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {latest && (
+                            <div>
+                              Last +{formatINR(latest.amount)} ·{" "}
+                              {formatDisplayDate(latest.date)}
+                            </div>
+                          )}
+                          {inv.units > 0 && (
+                            <div>
+                              {inv.units} ×{" "}
+                              {formatINR(inv.current_price, { precise: true })}
+                            </div>
+                          )}
+                          {inv.maturity_date && (
+                            <div>
+                              Matures {formatDisplayDate(inv.maturity_date)}
+                            </div>
+                          )}
+                          {inv.interest_rate != null && (
+                            <div>{formatPercent(inv.interest_rate)} p.a.</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={
+                                <Button variant="ghost" size="icon-sm" />
+                              }
+                            >
+                              <MoreHorizontal className="size-4" />
+                              <span className="sr-only">Actions</span>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => setContributing(inv)}
+                              >
+                                <Plus className="size-4" />
+                                Add money
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setHistoryFor(inv)}
+                              >
+                                <History className="size-4" />
+                                View entries
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEdit(inv)}>
+                                <Pencil className="size-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={() => setDeleting(inv)}
+                              >
+                                <Trash2 className="size-4" />
+                                Remove
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       <InvestmentForm
@@ -368,21 +467,21 @@ function SummaryTile({
 
   return (
     <div
-      className={`rounded-2xl border border-border/60 bg-gradient-to-br p-5 shadow-sm ${accents[accent]}`}
+      className={`min-w-0 rounded-2xl border border-border/60 bg-gradient-to-br p-3 shadow-sm sm:p-5 ${accents[accent]}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase sm:text-xs">
             {title}
           </p>
-          <p className="mt-2 font-heading text-2xl font-semibold tracking-tight tabular-nums">
+          <p className="mt-1.5 break-all font-heading text-base font-semibold tracking-tight tabular-nums sm:mt-2 sm:text-2xl">
             {value}
           </p>
         </div>
         <span
-          className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${icons[accent]}`}
+          className={`flex size-8 shrink-0 items-center justify-center rounded-xl sm:size-10 ${icons[accent]}`}
         >
-          <Icon className="size-5" />
+          <Icon className="size-4 sm:size-5" />
         </span>
       </div>
     </div>

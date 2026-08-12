@@ -87,35 +87,34 @@ export function CalculatorsView() {
       />
 
       <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-        <nav className="-mx-1 space-y-3 overflow-x-auto overscroll-x-contain px-1 pb-1 lg:space-y-4 lg:overflow-visible lg:pb-0">
+        <nav className="space-y-4">
           {(["Invest", "Borrow", "Plan"] as const).map((group) => (
             <div key={group}>
               <p className="mb-2 px-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
                 {group}
               </p>
-              <ul className="flex gap-2 lg:block lg:space-y-1">
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1 lg:gap-1">
                 {TOOLS.filter((t) => t.group === group).map((tool) => {
                   const Icon = tool.icon;
                   const selected = active === tool.id;
                   return (
-                    <li key={tool.id} className="shrink-0 lg:w-full">
+                    <li key={tool.id} className="min-w-0">
                       <button
                         type="button"
                         onClick={() => setActive(tool.id)}
                         className={cn(
-                          "flex w-full items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-colors",
-                          "min-w-[9.5rem] lg:min-w-0",
+                          "flex h-full w-full items-start gap-2 rounded-xl px-3 py-2.5 text-left transition-colors",
                           selected
                             ? "bg-teal-500/10 text-foreground"
-                            : "border border-border/50 text-muted-foreground hover:bg-muted/50 hover:text-foreground lg:border-transparent"
+                            : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                         )}
                       >
                         <Icon className="mt-0.5 size-4 shrink-0" />
-                        <span>
-                          <span className="block text-sm font-medium">
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium">
                             {tool.label}
                           </span>
-                          <span className="mt-0.5 hidden text-[11px] opacity-80 sm:block">
+                          <span className="mt-0.5 hidden text-[11px] leading-snug opacity-80 lg:block">
                             {tool.description}
                           </span>
                         </span>
@@ -128,12 +127,12 @@ export function CalculatorsView() {
           ))}
         </nav>
 
-        <section className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-6">
+        <section className="min-w-0 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-6">
           <div className="mb-5 flex items-start gap-3 border-b border-border/50 pb-4">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-400">
               <activeMeta.icon className="size-5" />
             </span>
-            <div>
+            <div className="min-w-0">
               <h2 className="font-heading text-lg font-semibold">
                 {activeMeta.label}
               </h2>
@@ -143,13 +142,15 @@ export function CalculatorsView() {
             </div>
           </div>
 
-          {active === "sip" && <SipCalculator />}
-          {active === "goal" && <GoalSipCalculator />}
-          {active === "fd" && <FdCalculator />}
-          {active === "rd" && <RdCalculator />}
-          {active === "loan" && <LoanCalculatorsPanel />}
-          {active === "inflation" && <InflationCalculator />}
-          {active === "cagr" && <CagrCalculator />}
+          <div className="min-w-0">
+            {active === "sip" && <SipCalculator />}
+            {active === "goal" && <GoalSipCalculator />}
+            {active === "fd" && <FdCalculator />}
+            {active === "rd" && <RdCalculator />}
+            {active === "loan" && <LoanCalculatorsPanel />}
+            {active === "inflation" && <InflationCalculator />}
+            {active === "cagr" && <CagrCalculator />}
+          </div>
         </section>
       </div>
     </div>

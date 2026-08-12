@@ -61,15 +61,13 @@ export function NetWorthView({ data }: { data: NetWorthPageData }) {
         }
       />
 
-      <div
-        className="rounded-2xl border border-border/60 bg-gradient-to-br from-teal-500/10 via-card to-card p-6 shadow-sm"
-      >
+      <div className="min-w-0 rounded-2xl border border-border/60 bg-gradient-to-br from-teal-500/10 via-card to-card p-4 shadow-sm sm:p-6">
         <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Current net worth
         </p>
         <p
           className={cn(
-            "mt-2 font-heading text-4xl font-semibold tracking-tight tabular-nums",
+            "mt-2 break-all font-heading text-2xl font-semibold tracking-tight tabular-nums sm:text-4xl",
             live.netWorth >= 0
               ? "text-teal-800 dark:text-teal-300"
               : "text-rose-700 dark:text-rose-400"
@@ -77,14 +75,14 @@ export function NetWorthView({ data }: { data: NetWorthPageData }) {
         >
           {formatINR(live.netWorth)}
         </p>
-        <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <span>
+        <div className="mt-4 flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-4">
+          <span className="min-w-0">
             Assets{" "}
             <span className="font-medium text-foreground tabular-nums">
               {formatINR(live.totalAssets)}
             </span>
           </span>
-          <span>
+          <span className="min-w-0">
             Liabilities{" "}
             <span className="font-medium text-foreground tabular-nums">
               {formatINR(live.totalLiabilities)}
@@ -93,7 +91,7 @@ export function NetWorthView({ data }: { data: NetWorthPageData }) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <BreakdownStat
           title="Cash"
           value={formatINR(live.totalCash)}
@@ -120,11 +118,11 @@ export function NetWorthView({ data }: { data: NetWorthPageData }) {
         />
       </div>
 
-      <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
-        <h3 className="mb-4 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+      <div className="min-w-0 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
+        <h3 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase sm:mb-4">
           Net worth trend
         </h3>
-        <div className="h-72 w-full">
+        <div className="h-52 w-full min-w-0 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={trend}>
               <defs>
@@ -136,16 +134,17 @@ export function NetWorthView({ data }: { data: NetWorthPageData }) {
               <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
               <XAxis
                 dataKey="label"
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 10 }}
                 stroke="currentColor"
                 className="text-muted-foreground"
+                interval="preserveStartEnd"
               />
               <YAxis
                 tickFormatter={(v) => formatINRCompact(v)}
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 10 }}
                 stroke="currentColor"
                 className="text-muted-foreground"
-                width={56}
+                width={44}
               />
               <ChartTooltip />
               <Area
@@ -178,7 +177,7 @@ export function NetWorthView({ data }: { data: NetWorthPageData }) {
         />
       </div>
 
-      <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+      <div className="min-w-0 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
         <h3 className="mb-4 text-sm font-medium tracking-wide text-muted-foreground uppercase">
           Snapshots
         </h3>
@@ -196,38 +195,61 @@ export function NetWorthView({ data }: { data: NetWorthPageData }) {
             className="border-0 bg-transparent py-10"
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
-                  <th className="pb-3 font-medium">Date</th>
-                  <th className="pb-3 font-medium">Cash</th>
-                  <th className="pb-3 font-medium">Investments</th>
-                  <th className="pb-3 font-medium">Liabilities</th>
-                  <th className="pb-3 font-medium text-right">Net worth</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {[...snapshots].reverse().map((s) => (
-                  <tr key={s.id}>
-                    <td className="py-3">{formatDisplayDate(s.snapshot_date)}</td>
-                    <td className="py-3 tabular-nums">
-                      {formatINR(s.total_cash)}
-                    </td>
-                    <td className="py-3 tabular-nums">
-                      {formatINR(s.total_investments)}
-                    </td>
-                    <td className="py-3 tabular-nums">
-                      {formatINR(s.total_liabilities)}
-                    </td>
-                    <td className="py-3 text-right font-medium tabular-nums">
+          <>
+            <ul className="divide-y divide-border/50 sm:hidden">
+              {[...snapshots].reverse().map((s) => (
+                <li key={s.id} className="space-y-1.5 py-3 first:pt-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">
+                      {formatDisplayDate(s.snapshot_date)}
+                    </p>
+                    <p className="text-sm font-semibold tabular-nums">
                       {formatINR(s.net_worth)}
-                    </td>
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    Cash {formatINR(s.total_cash)} · Inv{" "}
+                    {formatINR(s.total_investments)} · Liab{" "}
+                    {formatINR(s.total_liabilities)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto overscroll-x-contain sm:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
+                    <th className="pb-3 font-medium">Date</th>
+                    <th className="pb-3 font-medium">Cash</th>
+                    <th className="pb-3 font-medium">Investments</th>
+                    <th className="pb-3 font-medium">Liabilities</th>
+                    <th className="pb-3 font-medium text-right">Net worth</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {[...snapshots].reverse().map((s) => (
+                    <tr key={s.id}>
+                      <td className="py-3 whitespace-nowrap">
+                        {formatDisplayDate(s.snapshot_date)}
+                      </td>
+                      <td className="py-3 tabular-nums">
+                        {formatINR(s.total_cash)}
+                      </td>
+                      <td className="py-3 tabular-nums">
+                        {formatINR(s.total_investments)}
+                      </td>
+                      <td className="py-3 tabular-nums">
+                        {formatINR(s.total_liabilities)}
+                      </td>
+                      <td className="py-3 text-right font-medium tabular-nums">
+                        {formatINR(s.net_worth)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -266,21 +288,21 @@ function BreakdownStat({
 
   return (
     <div
-      className={`rounded-2xl border border-border/60 bg-gradient-to-br p-5 shadow-sm ${styles.card}`}
+      className={`min-w-0 rounded-2xl border border-border/60 bg-gradient-to-br p-3 shadow-sm sm:p-5 ${styles.card}`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase sm:text-xs">
             {title}
           </p>
-          <p className="mt-2 font-heading text-xl font-semibold tabular-nums">
+          <p className="mt-1.5 break-all font-heading text-base font-semibold tabular-nums sm:mt-2 sm:text-xl">
             {value}
           </p>
         </div>
         <span
-          className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${styles.icon}`}
+          className={`flex size-8 shrink-0 items-center justify-center rounded-xl sm:size-10 ${styles.icon}`}
         >
-          <Icon className="size-5" />
+          <Icon className="size-4 sm:size-5" />
         </span>
       </div>
     </div>
@@ -301,14 +323,14 @@ function BreakdownList({
   positive: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+    <div className="min-w-0 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
       <div className="mb-4 flex items-end justify-between gap-2">
         <h3 className="text-sm font-medium tracking-wide text-muted-foreground uppercase">
           {title}
         </h3>
         <p
           className={cn(
-            "font-heading text-lg font-semibold tabular-nums",
+            "shrink-0 font-heading text-base font-semibold tabular-nums sm:text-lg",
             positive
               ? "text-teal-800 dark:text-teal-300"
               : "text-rose-700 dark:text-rose-400"

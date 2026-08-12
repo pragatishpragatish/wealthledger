@@ -86,35 +86,39 @@ function SectionTable({ section }: { section: ReportSection }) {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Item</TableHead>
-          <TableHead className="hidden sm:table-cell">Notes</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {section.rows.map((row) => (
-          <TableRow key={`${section.title}-${row.label}`}>
-            <TableCell className="font-medium">{row.label}</TableCell>
-            <TableCell className="hidden text-muted-foreground sm:table-cell">
-              {row.meta ?? "—"}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatINR(row.amount)}
+    <div className="overflow-x-auto overscroll-x-contain">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Item</TableHead>
+            <TableHead className="hidden sm:table-cell">Notes</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {section.rows.map((row) => (
+            <TableRow key={`${section.title}-${row.label}`}>
+              <TableCell className="max-w-[10rem] truncate font-medium sm:max-w-none">
+                {row.label}
+              </TableCell>
+              <TableCell className="hidden text-muted-foreground sm:table-cell">
+                {row.meta ?? "—"}
+              </TableCell>
+              <TableCell className="whitespace-nowrap text-right tabular-nums">
+                {formatINR(row.amount)}
+              </TableCell>
+            </TableRow>
+          ))}
+          <TableRow>
+            <TableCell className="font-semibold">Total</TableCell>
+            <TableCell className="hidden sm:table-cell" />
+            <TableCell className="whitespace-nowrap text-right font-semibold tabular-nums">
+              {formatINR(section.total)}
             </TableCell>
           </TableRow>
-        ))}
-        <TableRow>
-          <TableCell className="font-semibold">Total</TableCell>
-          <TableCell className="hidden sm:table-cell" />
-          <TableCell className="text-right font-semibold tabular-nums">
-            {formatINR(section.total)}
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -126,8 +130,8 @@ function ReportBlock({
   children: React.ReactNode;
 }) {
   return (
-    <section className="report-section space-y-3 rounded-2xl border border-border/60 bg-card p-5 shadow-sm print:break-inside-avoid print:border print:shadow-none">
-      <h2 className="font-heading text-lg font-semibold tracking-tight">
+    <section className="report-section min-w-0 space-y-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5 print:break-inside-avoid print:border print:shadow-none">
+      <h2 className="font-heading text-base font-semibold tracking-tight sm:text-lg">
         {title}
       </h2>
       {children}
@@ -214,9 +218,10 @@ export function ReportsView({ report }: { report: FinancialReport }) {
           title="Reports"
           description="Monthly, calendar-year, and Indian financial year (Apr–Mar) summaries for tax filing."
           action={
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
               <Button
                 variant="outline"
+                className="justify-center"
                 onClick={() => downloadReportFile(report, "csv")}
               >
                 <Download className="size-4" />
@@ -224,16 +229,25 @@ export function ReportsView({ report }: { report: FinancialReport }) {
               </Button>
               <Button
                 variant="outline"
+                className="justify-center"
                 onClick={() => downloadReportFile(report, "xls")}
               >
                 <FileSpreadsheet className="size-4" />
                 Excel
               </Button>
-              <Button variant="outline" onClick={() => window.print()}>
+              <Button
+                variant="outline"
+                className="justify-center"
+                onClick={() => window.print()}
+              >
                 <Printer className="size-4" />
-                PDF / Print
+                Print
               </Button>
-              <Button onClick={handleSave} disabled={pending}>
+              <Button
+                className="justify-center"
+                onClick={handleSave}
+                disabled={pending}
+              >
                 <Save className="size-4" />
                 Save
               </Button>
@@ -251,8 +265,8 @@ export function ReportsView({ report }: { report: FinancialReport }) {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 print:hidden">
-        <div className="space-y-1.5">
+      <div className="grid grid-cols-1 gap-3 print:hidden sm:flex sm:flex-wrap sm:items-end">
+        <div className="min-w-0 space-y-1.5 sm:w-auto">
           <p className="text-xs font-medium text-muted-foreground">Period</p>
           <Select
             value={report.periodType}
@@ -269,7 +283,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
               PERIOD_OPTIONS.map((o) => [o.value, o.label])
             )}
           >
-            <SelectTrigger className="w-52">
+            <SelectTrigger className="w-full sm:w-52">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -283,7 +297,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
         </div>
 
         {report.periodType === "financial_year" ? (
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5 sm:w-auto">
             <p className="text-xs font-medium text-muted-foreground">
               Financial year
             </p>
@@ -296,7 +310,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
                 fyOptions.map((o) => [String(o.startYear), o.label])
               )}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-full sm:w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -309,7 +323,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
             </Select>
           </div>
         ) : (
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5 sm:w-auto">
             <p className="text-xs font-medium text-muted-foreground">
               {report.periodType === "yearly" ? "Calendar year" : "Year"}
             </p>
@@ -322,7 +336,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
                 years.map((y) => [String(y), String(y)])
               )}
             >
-              <SelectTrigger className="w-28">
+              <SelectTrigger className="w-full sm:w-28">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -337,7 +351,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
         )}
 
         {report.periodType === "monthly" && (
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5 sm:w-auto">
             <p className="text-xs font-medium text-muted-foreground">Month</p>
             <Select
               value={String(report.month ?? new Date().getMonth() + 1)}
@@ -348,7 +362,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
                 MONTHS.map((m) => [m.value, m.label])
               )}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-full sm:w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -363,13 +377,13 @@ export function ReportsView({ report }: { report: FinancialReport }) {
         )}
 
         {report.periodType === "financial_year" && (
-          <p className="pb-2 text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground sm:pb-2">
             Indian tax year: 1 Apr → 31 Mar · useful for ITR filing
           </p>
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 print:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 print:grid-cols-4">
         {[
           { label: "Income", value: report.cashFlow.income },
           { label: "Expense", value: report.cashFlow.expense },
@@ -378,12 +392,12 @@ export function ReportsView({ report }: { report: FinancialReport }) {
         ].map((stat) => (
           <div
             key={stat.label}
-            className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm print:shadow-none"
+            className="min-w-0 rounded-2xl border border-border/60 bg-card p-3 shadow-sm sm:p-4 print:shadow-none"
           >
-            <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase sm:text-xs">
               {stat.label}
             </p>
-            <p className="mt-1 font-heading text-xl font-semibold tabular-nums">
+            <p className="mt-1 break-all font-heading text-base font-semibold tabular-nums sm:text-xl">
               {formatINR(stat.value)}
             </p>
           </div>
@@ -391,7 +405,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
       </div>
 
       <ReportBlock title="Cash Flow">
-        <div className="mb-4 flex flex-wrap gap-4 text-sm">
+        <div className="mb-4 flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-4">
           <span>
             Savings rate:{" "}
             <strong>{formatPercent(report.cashFlow.savingsRate)}</strong>
@@ -400,15 +414,15 @@ export function ReportsView({ report }: { report: FinancialReport }) {
             {report.periodStart} → {report.periodEnd}
           </span>
         </div>
-        <div className="h-56 w-full print:hidden">
+        <div className="mb-2 h-48 w-full min-w-0 sm:h-56 print:hidden">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={cashFlowChart}>
               <CartesianGrid
                 strokeDasharray="3 3"
                 className="stroke-border/50"
               />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 11 }} width={56} />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} width={44} />
               <ChartTooltip />
               <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                 {cashFlowChart.map((entry, i) => (
@@ -421,28 +435,30 @@ export function ReportsView({ report }: { report: FinancialReport }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <Table>
-          <TableBody>
-            <TableRow>
-              <TableCell>Income</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatINR(report.cashFlow.income)}
-              </TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>Expense</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {formatINR(report.cashFlow.expense)}
-              </TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-semibold">Net</TableCell>
-              <TableCell className="text-right font-semibold tabular-nums">
-                {formatINR(report.cashFlow.net)}
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        <div className="overflow-x-auto overscroll-x-contain">
+          <Table>
+            <TableBody>
+              <TableRow>
+                <TableCell>Income</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatINR(report.cashFlow.income)}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Expense</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatINR(report.cashFlow.expense)}
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-semibold">Net</TableCell>
+                <TableCell className="text-right font-semibold tabular-nums">
+                  {formatINR(report.cashFlow.net)}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
       </ReportBlock>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -451,7 +467,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
         </ReportBlock>
         <ReportBlock title="Expense">
           {expensePie.length > 0 && (
-            <div className="mb-4 h-48 print:hidden">
+            <div className="mb-4 h-44 min-w-0 sm:h-48 print:hidden">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -460,7 +476,7 @@ export function ReportsView({ report }: { report: FinancialReport }) {
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    outerRadius={70}
+                    outerRadius={64}
                   >
                     {expensePie.map((entry) => (
                       <Cell key={entry.name} fill={entry.color} />
