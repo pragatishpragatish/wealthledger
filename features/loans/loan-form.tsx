@@ -45,7 +45,7 @@ type Props = {
   accounts: Pick<Account, "id" | "name" | "bank_name">[];
 };
 
-function defaults(loan?: LoanComputed | null): LoanFormValues {
+function defaults(loan?: LoanComputed | null): z.input<typeof loanSchema> {
   if (loan) {
     return {
       name: loan.name,
@@ -74,20 +74,20 @@ function defaults(loan?: LoanComputed | null): LoanFormValues {
     name: "",
     bank: "",
     loan_type: "home",
-    principal: 0,
+    principal: undefined,
     interest_rate: 8.5,
     interest_type: "reducing",
     input_mode: "tenure",
     tenure_months: 240,
-    emi: 0,
+    emi: undefined,
     start_date: toDateString(new Date()),
-    processing_fee: 0,
-    insurance_fee: 0,
-    prepayment_charges: 0,
-    outstanding_principal: 0,
-    principal_paid: 0,
-    interest_paid: 0,
-    emis_paid: 0,
+    processing_fee: undefined,
+    insurance_fee: undefined,
+    prepayment_charges: undefined,
+    outstanding_principal: undefined,
+    principal_paid: undefined,
+    interest_paid: undefined,
+    emis_paid: undefined,
     account_id: null,
     notes: null,
     is_active: true,

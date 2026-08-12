@@ -63,7 +63,7 @@ function defaults(
   defaultPeriod: BudgetPeriod,
   defaultYear: number,
   defaultMonth: number
-): BudgetFormValues {
+): z.input<typeof budgetSchema> {
   if (budget) {
     return {
       category_id: budget.category_id ?? "",
@@ -80,7 +80,7 @@ function defaults(
     period: defaultPeriod,
     year: defaultYear,
     month: defaultPeriod === "monthly" ? defaultMonth : null,
-    amount: 0,
+    amount: undefined,
     is_recurring: false,
     this_period_only: false,
   };

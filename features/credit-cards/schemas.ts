@@ -39,10 +39,13 @@ export const creditCardSchema = z.object({
   paid_amount: nonNegativeMoneySchema,
   billing_date: dayOfMonth,
   due_date: dayOfMonth,
-  interest_rate: z.coerce
-    .number({ invalid_type_error: "Enter a valid rate" })
-    .min(0, "Rate cannot be negative")
-    .max(100, "Rate seems too high"),
+  interest_rate: z.preprocess(
+    (v) => (v === "" || v == null ? 0 : v),
+    z.coerce
+      .number({ invalid_type_error: "Enter a valid rate" })
+      .min(0, "Rate cannot be negative")
+      .max(100, "Rate seems too high")
+  ),
   reward_type: z.enum(rewardValues),
   notes: optionalNullableString,
   is_active: z.boolean(),

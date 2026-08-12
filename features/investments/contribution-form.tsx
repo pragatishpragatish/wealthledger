@@ -44,9 +44,9 @@ export function ContributionForm({ open, onOpenChange, investment }: Props) {
     resolver: zodResolver(contributionSchema),
     defaultValues: {
       date: toDateString(new Date()),
-      amount: 0,
-      units: 0,
-      price: 0,
+      amount: undefined,
+      units: undefined,
+      price: undefined,
       notes: null,
     },
   });
@@ -55,9 +55,9 @@ export function ContributionForm({ open, onOpenChange, investment }: Props) {
     if (open) {
       form.reset({
         date: toDateString(new Date()),
-        amount: 0,
-        units: 0,
-        price: 0,
+        amount: undefined,
+        units: undefined,
+        price: undefined,
         notes: null,
       });
     }

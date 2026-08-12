@@ -24,12 +24,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { z } from "zod";
 import { ACCOUNT_TYPES } from "@/lib/constants";
 import { toDateString } from "@/utils/date";
 import type { Account } from "@/types";
 import {
   accountSchema,
-  type AccountFormValues,
 } from "@/features/accounts/schemas";
 import {
   createAccount,
@@ -42,7 +42,7 @@ type Props = {
   account?: Account | null;
 };
 
-function defaults(account?: Account | null): AccountFormValues {
+function defaults(account?: Account | null): z.input<typeof accountSchema> {
   if (account) {
     return {
       name: account.name,
@@ -62,7 +62,7 @@ function defaults(account?: Account | null): AccountFormValues {
     account_number: null,
     ifsc: null,
     account_type: "savings",
-    opening_balance: 0,
+    opening_balance: undefined,
     current_balance: undefined,
     opening_date: toDateString(new Date()),
     notes: null,
@@ -73,7 +73,7 @@ export function AccountForm({ open, onOpenChange, account }: Props) {
   const isEdit = Boolean(account);
   const [pending, startTransition] = useTransition();
 
-  const form = useForm<AccountFormValues>({
+  const form = useForm<z.input<typeof accountSchema>>({
     resolver: zodResolver(accountSchema),
     defaultValues: defaults(account),
   });
@@ -84,7 +84,7 @@ export function AccountForm({ open, onOpenChange, account }: Props) {
     }
   }, [open, account, form]);
 
-  function onSubmit(values: AccountFormValues) {
+  function onSubmit(values: z.input<typeof accountSchema>) {
     startTransition(async () => {
       const result = isEdit && account
         ? await updateAccount(account.id, values)

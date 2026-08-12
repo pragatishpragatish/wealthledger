@@ -55,7 +55,7 @@ type Props = {
 
 function defaults(
   investment?: InvestmentComputed | null
-): InvestmentFormValues {
+): z.input<typeof investmentSchema> {
   if (investment) {
     return {
       name: investment.name,
@@ -78,11 +78,11 @@ function defaults(
     type: "mutual_funds",
     platform: "Groww",
     purchase_date: toDateString(new Date()),
-    units: 0,
-    buy_price: 0,
-    current_price: 0,
-    invested_amount: 0,
-    current_value: 0,
+    units: undefined,
+    buy_price: undefined,
+    current_price: undefined,
+    invested_amount: undefined,
+    current_value: undefined,
     maturity_date: null,
     interest_rate: null,
     notes: null,

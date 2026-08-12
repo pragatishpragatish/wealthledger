@@ -30,10 +30,7 @@ import {
 } from "@/components/ui/select";
 import { PAYMENT_METHODS, RECURRING_FREQUENCIES } from "@/lib/constants";
 import { toDateString } from "@/utils/date";
-import {
-  expenseSchema,
-  type ExpenseFormValues,
-} from "@/features/expenses/schemas";
+import { expenseSchema } from "@/features/expenses/schemas";
 import { createExpense, updateExpense } from "@/features/expenses/actions";
 import type { ExpenseRow } from "@/features/expenses/queries";
 
@@ -84,7 +81,9 @@ function parseSource(value: string | null): {
   return { account_id: null, credit_card_id: null };
 }
 
-function defaults(expense?: ExpenseRow | null): ExpenseFormValues {
+function defaults(
+  expense?: ExpenseRow | null
+): z.input<typeof expenseSchema> {
   if (expense) {
     return {
       date: expense.date,
@@ -103,7 +102,7 @@ function defaults(expense?: ExpenseRow | null): ExpenseFormValues {
   }
   return {
     date: toDateString(new Date()),
-    amount: 0,
+    amount: undefined,
     category_id: null,
     account_id: null,
     credit_card_id: null,
@@ -151,11 +150,7 @@ export function ExpenseForm({
     return items;
   }, [accounts, creditCards]);
 
-  const form = useForm<
-    z.input<typeof expenseSchema>,
-    unknown,
-    ExpenseFormValues
-  >({
+  const form = useForm<z.input<typeof expenseSchema>>({
     resolver: zodResolver(expenseSchema),
     defaultValues: defaults(expense),
   });
@@ -172,7 +167,7 @@ export function ExpenseForm({
     if (open) form.reset(defaults(expense));
   }, [open, expense, form]);
 
-  function onSubmit(values: ExpenseFormValues) {
+  function onSubmit(values: z.input<typeof expenseSchema>) {
     startTransition(async () => {
       const result =
         isEdit && expense

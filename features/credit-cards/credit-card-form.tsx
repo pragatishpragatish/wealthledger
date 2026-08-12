@@ -42,7 +42,9 @@ type Props = {
   card?: CreditCardComputed | null;
 };
 
-function defaults(card?: CreditCardComputed | null): CreditCardFormValues {
+function defaults(
+  card?: CreditCardComputed | null
+): z.input<typeof creditCardSchema> {
   if (card) {
     return {
       bank: card.bank,
@@ -65,14 +67,14 @@ function defaults(card?: CreditCardComputed | null): CreditCardFormValues {
     bank: "",
     card_name: "",
     last_four: null,
-    credit_limit: 0,
-    outstanding: 0,
-    statement_amount: 0,
-    minimum_due: 0,
-    paid_amount: 0,
+    credit_limit: undefined,
+    outstanding: undefined,
+    statement_amount: undefined,
+    minimum_due: undefined,
+    paid_amount: undefined,
     billing_date: 1,
     due_date: 15,
-    interest_rate: 0,
+    interest_rate: undefined,
     reward_type: "none",
     notes: null,
     is_active: true,

@@ -45,7 +45,7 @@ type Props = {
   goal?: GoalComputed | null;
 };
 
-function defaults(goal?: GoalComputed | null): GoalFormValues {
+function defaults(goal?: GoalComputed | null): z.input<typeof goalSchema> {
   if (goal) {
     return {
       name: goal.name,
@@ -61,9 +61,9 @@ function defaults(goal?: GoalComputed | null): GoalFormValues {
   return {
     name: "",
     type: "custom",
-    target_amount: 0,
-    current_amount: 0,
-    monthly_contribution: 0,
+    target_amount: undefined,
+    current_amount: undefined,
+    monthly_contribution: undefined,
     target_date: null,
     color: GOAL_COLORS[0],
     notes: null,

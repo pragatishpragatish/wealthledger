@@ -31,21 +31,25 @@ export const loanSchema = z
       .max(600, "Tenure seems too long"),
     emi: positiveMoneySchema,
     start_date: dateStringSchema,
-    processing_fee: nonNegativeMoneySchema.default(0),
-    insurance_fee: nonNegativeMoneySchema.default(0),
-    prepayment_charges: z.coerce
-      .number({ invalid_type_error: "Enter a valid percentage" })
-      .min(0)
-      .max(100)
-      .default(0),
+    processing_fee: nonNegativeMoneySchema,
+    insurance_fee: nonNegativeMoneySchema,
+    prepayment_charges: z.preprocess(
+      (v) => (v === "" || v == null ? 0 : v),
+      z.coerce
+        .number({ invalid_type_error: "Enter a valid percentage" })
+        .min(0)
+        .max(100)
+    ),
     outstanding_principal: nonNegativeMoneySchema.optional(),
-    principal_paid: nonNegativeMoneySchema.default(0),
-    interest_paid: nonNegativeMoneySchema.default(0),
-    emis_paid: z.coerce
-      .number({ invalid_type_error: "Enter EMIs paid" })
-      .int()
-      .min(0)
-      .default(0),
+    principal_paid: nonNegativeMoneySchema,
+    interest_paid: nonNegativeMoneySchema,
+    emis_paid: z.preprocess(
+      (v) => (v === "" || v == null ? 0 : v),
+      z.coerce
+        .number({ invalid_type_error: "Enter EMIs paid" })
+        .int()
+        .min(0)
+    ),
     account_id: z
       .union([z.string().uuid(), z.literal(""), z.null()])
       .optional()
@@ -76,12 +80,12 @@ export type LoanFormValues = z.infer<typeof loanSchema>;
 export const simulationSchema = z.object({
   name: z.string().trim().min(1, "Scenario name is required").max(120),
   strategy: z.enum(["reduce_emi", "reduce_tenure"]),
-  one_time_amount: nonNegativeMoneySchema.default(0),
+  one_time_amount: nonNegativeMoneySchema,
   one_time_date: z
     .union([dateStringSchema, z.literal(""), z.null()])
     .optional()
     .transform((v) => (v == null || v === "" ? null : v)),
-  recurring_extra_emi: nonNegativeMoneySchema.default(0),
+  recurring_extra_emi: nonNegativeMoneySchema,
   increased_emi: z
     .union([positiveMoneySchema, z.literal(""), z.null(), z.literal(0)])
     .optional()
@@ -89,7 +93,7 @@ export const simulationSchema = z.object({
       if (v === "" || v == null || v === 0) return null;
       return v as number;
     }),
-  annual_lump_sum: nonNegativeMoneySchema.default(0),
+  annual_lump_sum: nonNegativeMoneySchema,
   original_emi: positiveMoneySchema,
   new_emi: positiveMoneySchema,
   original_tenure: z.coerce.number().int().positive(),

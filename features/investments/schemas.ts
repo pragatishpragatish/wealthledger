@@ -26,14 +26,16 @@ export const investmentSchema = z
     type: z.enum(investmentTypeValues),
     platform: optionalNullableString,
     purchase_date: optionalDate,
-    units: z.coerce
-      .number({ invalid_type_error: "Enter valid units" })
-      .min(0, "Units cannot be negative")
-      .default(0),
-    buy_price: nonNegativeMoneySchema.default(0),
-    current_price: nonNegativeMoneySchema.default(0),
-    invested_amount: nonNegativeMoneySchema.default(0),
-    current_value: nonNegativeMoneySchema.default(0),
+    units: z.preprocess(
+      (v) => (v === "" || v == null ? 0 : v),
+      z.coerce
+        .number({ invalid_type_error: "Enter valid units" })
+        .min(0, "Units cannot be negative")
+    ),
+    buy_price: nonNegativeMoneySchema,
+    current_price: nonNegativeMoneySchema,
+    invested_amount: nonNegativeMoneySchema,
+    current_value: nonNegativeMoneySchema,
     maturity_date: optionalDate,
     interest_rate: z
       .union([
@@ -68,11 +70,13 @@ export type InvestmentFormValues = z.infer<typeof investmentSchema>;
 export const contributionSchema = z.object({
   date: dateStringSchema,
   amount: positiveMoneySchema,
-  units: z.coerce
-    .number({ invalid_type_error: "Enter valid units" })
-    .min(0, "Units cannot be negative")
-    .default(0),
-  price: nonNegativeMoneySchema.default(0),
+  units: z.preprocess(
+    (v) => (v === "" || v == null ? 0 : v),
+    z.coerce
+      .number({ invalid_type_error: "Enter valid units" })
+      .min(0, "Units cannot be negative")
+  ),
+  price: nonNegativeMoneySchema,
   notes: optionalNullableString,
 });
 

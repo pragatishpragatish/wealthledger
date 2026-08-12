@@ -5,6 +5,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import type { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,7 +58,7 @@ const TYPE_OPTIONS = [
   { value: "adjustment", label: "Adjustment" },
 ] as const;
 
-function defaults(tx?: Transaction | null): TransactionFormValues {
+function defaults(tx?: Transaction | null): z.input<typeof transactionSchema> {
   if (tx) {
     return {
       type: tx.type,
@@ -75,7 +76,7 @@ function defaults(tx?: Transaction | null): TransactionFormValues {
   return {
     type: "expense",
     date: toDateString(new Date()),
-    amount: 0,
+    amount: undefined,
     category_id: null,
     account_id: null,
     to_account_id: null,
@@ -96,7 +97,11 @@ export function TransactionForm({
   const isEdit = Boolean(transaction);
   const [pending, startTransition] = useTransition();
 
-  const form = useForm<TransactionFormValues>({
+  const form = useForm<
+    z.input<typeof transactionSchema>,
+    unknown,
+    TransactionFormValues
+  >({
     resolver: zodResolver(transactionSchema),
     defaultValues: defaults(transaction),
   });

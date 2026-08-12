@@ -54,7 +54,7 @@ type Props = {
   categories: CategoryOption[];
 };
 
-function defaults(income?: IncomeRow | null): IncomeFormValues {
+function defaults(income?: IncomeRow | null): z.input<typeof incomeSchema> {
   if (income) {
     return {
       date: income.date,
@@ -68,7 +68,7 @@ function defaults(income?: IncomeRow | null): IncomeFormValues {
   }
   return {
     date: toDateString(new Date()),
-    amount: 0,
+    amount: undefined,
     category_id: null,
     account_id: "",
     notes: null,
