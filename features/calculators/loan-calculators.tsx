@@ -9,54 +9,63 @@ import {
   scheduleTotals,
   generateAmortizationSchedule,
 } from "@/lib/calculations/loan";
-import { CalcField, CalcStat } from "@/features/calculators/calc-ui";
+import {
+  CalcField,
+  CalcMoneyInput,
+  CalcStat,
+  parseAmount,
+} from "@/features/calculators/calc-ui";
 import { EmiCalculator } from "@/features/loans/emi-calculator";
 
 /** Full EMI summary: payment, interest, total. */
 export function LoanEmiSummaryCalculator() {
-  const [principal, setPrincipal] = useState(2500000);
-  const [rate, setRate] = useState(8.5);
-  const [years, setYears] = useState(20);
+  const [principal, setPrincipal] = useState("");
+  const [rate, setRate] = useState("");
+  const [years, setYears] = useState("");
 
-  const tenureMonths = Math.max(0, Math.round(years * 12));
+  const principalN = parseAmount(principal);
+  const rateN = parseAmount(rate);
+  const yearsN = parseAmount(years);
+  const tenureMonths = Math.max(0, Math.round(yearsN * 12));
+
   const emi = useMemo(
-    () => calculateEMI(principal, rate, tenureMonths),
-    [principal, rate, tenureMonths]
+    () => calculateEMI(principalN, rateN, tenureMonths),
+    [principalN, rateN, tenureMonths]
   );
 
   const totals = useMemo(() => {
-    if (tenureMonths <= 0 || principal <= 0) {
+    if (tenureMonths <= 0 || principalN <= 0) {
       return { totalInterest: 0, totalPrincipal: 0, totalPayable: 0 };
     }
     const rows = generateAmortizationSchedule({
-      principal,
-      annualRate: rate,
+      principal: principalN,
+      annualRate: rateN,
       tenureMonths,
       emi,
       startDate: new Date(),
     });
     return scheduleTotals(rows);
-  }, [principal, rate, tenureMonths, emi]);
+  }, [principalN, rateN, tenureMonths, emi]);
 
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-3">
-        <CalcField label="Loan amount (₹)">
-          <Input
-            type="number"
-            min={0}
-            step={10000}
-            value={principal}
-            onChange={(e) => setPrincipal(Number(e.target.value) || 0)}
-          />
-        </CalcField>
+        <CalcMoneyInput
+          label="Loan amount (₹)"
+          placeholder="e.g. 2500000"
+          step={10000}
+          value={principal}
+          onChange={setPrincipal}
+        />
         <CalcField label="Interest % p.a.">
           <Input
             type="number"
             min={0}
             step={0.1}
+            placeholder="e.g. 8.5"
             value={rate}
-            onChange={(e) => setRate(Number(e.target.value) || 0)}
+            onChange={(e) => setRate(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
         <CalcField label="Tenure (years)">
@@ -64,20 +73,31 @@ export function LoanEmiSummaryCalculator() {
             type="number"
             min={0}
             step={1}
+            placeholder="e.g. 20"
             value={years}
-            onChange={(e) => setYears(Number(e.target.value) || 0)}
+            onChange={(e) => setYears(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <CalcStat label="Monthly EMI" value={formatINR(emi)} accent="teal" />
-        <CalcStat label="Total interest" value={formatINR(totals.totalInterest)} />
-        <CalcStat label="Total payable" value={formatINR(totals.totalPayable)} />
+        <CalcStat
+          label="Total interest"
+          value={formatINR(totals.totalInterest)}
+        />
+        <CalcStat
+          label="Total payable"
+          value={formatINR(totals.totalPayable)}
+        />
         <CalcStat
           label="Interest share"
           value={
             totals.totalPayable > 0
-              ? formatPercent((totals.totalInterest / totals.totalPayable) * 100, 1)
+              ? formatPercent(
+                  (totals.totalInterest / totals.totalPayable) * 100,
+                  1
+                )
               : "0%"
           }
         />
@@ -88,42 +108,49 @@ export function LoanEmiSummaryCalculator() {
 
 /** How much loan you can take for a given EMI budget. */
 export function LoanAffordabilityCalculator() {
-  const [emi, setEmi] = useState(25000);
-  const [rate, setRate] = useState(8.5);
-  const [years, setYears] = useState(20);
+  const [emi, setEmi] = useState("");
+  const [rate, setRate] = useState("");
+  const [years, setYears] = useState("");
 
-  const tenureMonths = Math.max(0, Math.round(years * 12));
+  const emiN = parseAmount(emi);
+  const rateN = parseAmount(rate);
+  const yearsN = parseAmount(years);
+  const tenureMonths = Math.max(0, Math.round(yearsN * 12));
+
   const principal = useMemo(
-    () => calculatePrincipal(emi, rate, tenureMonths),
-    [emi, rate, tenureMonths]
+    () => calculatePrincipal(emiN, rateN, tenureMonths),
+    [emiN, rateN, tenureMonths]
   );
 
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-3">
-        <CalcField label="Affordable EMI (₹)">
-          <Input
-            type="number"
-            min={0}
-            value={emi}
-            onChange={(e) => setEmi(Number(e.target.value) || 0)}
-          />
-        </CalcField>
+        <CalcMoneyInput
+          label="Affordable EMI (₹)"
+          placeholder="e.g. 25000"
+          step={500}
+          value={emi}
+          onChange={setEmi}
+        />
         <CalcField label="Interest % p.a.">
           <Input
             type="number"
             min={0}
             step={0.1}
+            placeholder="e.g. 8.5"
             value={rate}
-            onChange={(e) => setRate(Number(e.target.value) || 0)}
+            onChange={(e) => setRate(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
         <CalcField label="Tenure (years)">
           <Input
             type="number"
             min={0}
+            placeholder="e.g. 20"
             value={years}
-            onChange={(e) => setYears(Number(e.target.value) || 0)}
+            onChange={(e) => setYears(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
       </div>
@@ -141,46 +168,50 @@ export function LoanAffordabilityCalculator() {
  * (interest you avoid by paying off now).
  */
 export function LoanLumpsumPayoffCalculator() {
-  const [outstanding, setOutstanding] = useState(800000);
-  const [rate, setRate] = useState(10);
-  const [remainingYears, setRemainingYears] = useState(5);
+  const [outstanding, setOutstanding] = useState("");
+  const [rate, setRate] = useState("");
+  const [remainingYears, setRemainingYears] = useState("");
 
-  const tenureMonths = Math.max(0, Math.round(remainingYears * 12));
+  const outstandingN = parseAmount(outstanding);
+  const rateN = parseAmount(rate);
+  const remainingYearsN = parseAmount(remainingYears);
+  const tenureMonths = Math.max(0, Math.round(remainingYearsN * 12));
 
   const viaEmi = useMemo(() => {
-    const emi = calculateEMI(outstanding, rate, tenureMonths);
-    if (tenureMonths <= 0 || outstanding <= 0) {
+    const emi = calculateEMI(outstandingN, rateN, tenureMonths);
+    if (tenureMonths <= 0 || outstandingN <= 0) {
       return { emi: 0, totalInterest: 0, totalPayable: 0 };
     }
     const rows = generateAmortizationSchedule({
-      principal: outstanding,
-      annualRate: rate,
+      principal: outstandingN,
+      annualRate: rateN,
       tenureMonths,
       emi,
       startDate: new Date(),
     });
     const totals = scheduleTotals(rows);
     return { emi, ...totals };
-  }, [outstanding, rate, tenureMonths]);
+  }, [outstandingN, rateN, tenureMonths]);
 
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-3">
-        <CalcField label="Outstanding principal (₹)">
-          <Input
-            type="number"
-            min={0}
-            value={outstanding}
-            onChange={(e) => setOutstanding(Number(e.target.value) || 0)}
-          />
-        </CalcField>
+        <CalcMoneyInput
+          label="Outstanding principal (₹)"
+          placeholder="e.g. 800000"
+          step={10000}
+          value={outstanding}
+          onChange={setOutstanding}
+        />
         <CalcField label="Interest % p.a.">
           <Input
             type="number"
             min={0}
             step={0.1}
+            placeholder="e.g. 10"
             value={rate}
-            onChange={(e) => setRate(Number(e.target.value) || 0)}
+            onChange={(e) => setRate(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
         <CalcField label="Remaining tenure (years)">
@@ -188,8 +219,10 @@ export function LoanLumpsumPayoffCalculator() {
             type="number"
             min={0}
             step={0.5}
+            placeholder="e.g. 5"
             value={remainingYears}
-            onChange={(e) => setRemainingYears(Number(e.target.value) || 0)}
+            onChange={(e) => setRemainingYears(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
       </div>
@@ -197,7 +230,7 @@ export function LoanLumpsumPayoffCalculator() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <CalcStat
           label="Lumpsum to clear now"
-          value={formatINR(outstanding)}
+          value={formatINR(outstandingN)}
           accent="teal"
         />
         <CalcStat label="Current EMI" value={formatINR(viaEmi.emi)} />
@@ -212,7 +245,7 @@ export function LoanLumpsumPayoffCalculator() {
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        Paying {formatINR(outstanding)} today avoids about{" "}
+        Paying {formatINR(outstandingN)} today avoids about{" "}
         {formatINR(viaEmi.totalInterest)} in future interest (before
         prepayment charges, if any).
       </p>

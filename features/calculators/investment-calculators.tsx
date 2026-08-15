@@ -9,43 +9,53 @@ import {
   calculateInflation,
   calculateRd,
 } from "@/lib/calculations/investment";
-import { CalcField, CalcStat } from "@/features/calculators/calc-ui";
+import {
+  CalcField,
+  CalcMoneyInput,
+  CalcStat,
+  parseAmount,
+} from "@/features/calculators/calc-ui";
 
 export function FdCalculator() {
-  const [principal, setPrincipal] = useState(100000);
-  const [rate, setRate] = useState(7.1);
-  const [years, setYears] = useState(3);
+  const [principal, setPrincipal] = useState("");
+  const [rate, setRate] = useState("");
+  const [years, setYears] = useState("");
   const [compounds, setCompounds] = useState<1 | 2 | 4 | 12>(4);
+
+  const principalN = parseAmount(principal);
+  const rateN = parseAmount(rate);
+  const yearsN = parseAmount(years);
 
   const result = useMemo(
     () =>
       calculateFd({
-        principal,
-        annualRatePercent: rate,
-        years,
+        principal: principalN,
+        annualRatePercent: rateN,
+        years: yearsN,
         compoundsPerYear: compounds,
       }),
-    [principal, rate, years, compounds]
+    [principalN, rateN, yearsN, compounds]
   );
 
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <CalcField label="Principal (₹)">
-          <Input
-            type="number"
-            min={0}
-            value={principal}
-            onChange={(e) => setPrincipal(Number(e.target.value) || 0)}
-          />
-        </CalcField>
+        <CalcMoneyInput
+          label="Principal (₹)"
+          placeholder="e.g. 100000"
+          step={1000}
+          value={principal}
+          onChange={setPrincipal}
+        />
         <CalcField label="Interest % p.a.">
           <Input
             type="number"
             min={0}
             step={0.1}
+            placeholder="e.g. 7.1"
             value={rate}
-            onChange={(e) => setRate(Number(e.target.value) || 0)}
+            onChange={(e) => setRate(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
         <CalcField label="Tenure (years)">
@@ -53,8 +63,10 @@ export function FdCalculator() {
             type="number"
             min={0}
             step={0.5}
+            placeholder="e.g. 3"
             value={years}
-            onChange={(e) => setYears(Number(e.target.value) || 0)}
+            onChange={(e) => setYears(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
         <CalcField label="Compounding">
@@ -90,46 +102,53 @@ export function FdCalculator() {
 }
 
 export function RdCalculator() {
-  const [monthly, setMonthly] = useState(5000);
-  const [rate, setRate] = useState(7);
-  const [years, setYears] = useState(5);
+  const [monthly, setMonthly] = useState("");
+  const [rate, setRate] = useState("");
+  const [years, setYears] = useState("");
+
+  const monthlyN = parseAmount(monthly);
+  const rateN = parseAmount(rate);
+  const yearsN = parseAmount(years);
 
   const result = useMemo(
     () =>
       calculateRd({
-        monthlyDeposit: monthly,
-        annualRatePercent: rate,
-        years,
+        monthlyDeposit: monthlyN,
+        annualRatePercent: rateN,
+        years: yearsN,
       }),
-    [monthly, rate, years]
+    [monthlyN, rateN, yearsN]
   );
 
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-3">
-        <CalcField label="Monthly deposit (₹)">
-          <Input
-            type="number"
-            min={0}
-            value={monthly}
-            onChange={(e) => setMonthly(Number(e.target.value) || 0)}
-          />
-        </CalcField>
+        <CalcMoneyInput
+          label="Monthly deposit (₹)"
+          placeholder="e.g. 5000"
+          step={500}
+          value={monthly}
+          onChange={setMonthly}
+        />
         <CalcField label="Interest % p.a.">
           <Input
             type="number"
             min={0}
             step={0.1}
+            placeholder="e.g. 7"
             value={rate}
-            onChange={(e) => setRate(Number(e.target.value) || 0)}
+            onChange={(e) => setRate(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
         <CalcField label="Tenure (years)">
           <Input
             type="number"
             min={0}
+            placeholder="e.g. 5"
             value={years}
-            onChange={(e) => setYears(Number(e.target.value) || 0)}
+            onChange={(e) => setYears(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
       </div>
@@ -154,46 +173,53 @@ export function RdCalculator() {
 }
 
 export function InflationCalculator() {
-  const [amount, setAmount] = useState(100000);
-  const [inflation, setInflation] = useState(6);
-  const [years, setYears] = useState(10);
+  const [amount, setAmount] = useState("");
+  const [inflation, setInflation] = useState("");
+  const [years, setYears] = useState("");
+
+  const amountN = parseAmount(amount);
+  const inflationN = parseAmount(inflation);
+  const yearsN = parseAmount(years);
 
   const result = useMemo(
     () =>
       calculateInflation({
-        amount,
-        annualInflationPercent: inflation,
-        years,
+        amount: amountN,
+        annualInflationPercent: inflationN,
+        years: yearsN,
       }),
-    [amount, inflation, years]
+    [amountN, inflationN, yearsN]
   );
 
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-3">
-        <CalcField label="Amount today (₹)">
-          <Input
-            type="number"
-            min={0}
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value) || 0)}
-          />
-        </CalcField>
+        <CalcMoneyInput
+          label="Amount today (₹)"
+          placeholder="e.g. 100000"
+          step={1000}
+          value={amount}
+          onChange={setAmount}
+        />
         <CalcField label="Inflation % p.a.">
           <Input
             type="number"
             min={0}
             step={0.1}
+            placeholder="e.g. 6"
             value={inflation}
-            onChange={(e) => setInflation(Number(e.target.value) || 0)}
+            onChange={(e) => setInflation(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
         <CalcField label="Years">
           <Input
             type="number"
             min={0}
+            placeholder="e.g. 10"
             value={years}
-            onChange={(e) => setYears(Number(e.target.value) || 0)}
+            onChange={(e) => setYears(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
       </div>
@@ -217,46 +243,50 @@ export function InflationCalculator() {
 }
 
 export function CagrCalculator() {
-  const [start, setStart] = useState(100000);
-  const [end, setEnd] = useState(250000);
-  const [years, setYears] = useState(5);
+  const [start, setStart] = useState("");
+  const [end, setEnd] = useState("");
+  const [years, setYears] = useState("");
+
+  const startN = parseAmount(start);
+  const endN = parseAmount(end);
+  const yearsN = parseAmount(years);
 
   const cagr = useMemo(
     () =>
       calculateCagr({
-        startValue: start,
-        endValue: end,
-        years,
+        startValue: startN,
+        endValue: endN,
+        years: yearsN,
       }),
-    [start, end, years]
+    [startN, endN, yearsN]
   );
 
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-3">
-        <CalcField label="Starting value (₹)">
-          <Input
-            type="number"
-            min={0}
-            value={start}
-            onChange={(e) => setStart(Number(e.target.value) || 0)}
-          />
-        </CalcField>
-        <CalcField label="Ending value (₹)">
-          <Input
-            type="number"
-            min={0}
-            value={end}
-            onChange={(e) => setEnd(Number(e.target.value) || 0)}
-          />
-        </CalcField>
+        <CalcMoneyInput
+          label="Starting value (₹)"
+          placeholder="e.g. 100000"
+          step={1000}
+          value={start}
+          onChange={setStart}
+        />
+        <CalcMoneyInput
+          label="Ending value (₹)"
+          placeholder="e.g. 250000"
+          step={1000}
+          value={end}
+          onChange={setEnd}
+        />
         <CalcField label="Years">
           <Input
             type="number"
             min={0}
             step={0.1}
+            placeholder="e.g. 5"
             value={years}
-            onChange={(e) => setYears(Number(e.target.value) || 0)}
+            onChange={(e) => setYears(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
       </div>

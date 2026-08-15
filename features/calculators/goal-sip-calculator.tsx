@@ -6,16 +6,17 @@ import { formatINR } from "@/utils/currency";
 import { requiredMonthlySip } from "@/lib/calculations/investment";
 import {
   CalcField,
+  CalcMoneyInput,
   CalcStat,
   parseAmount,
 } from "@/features/calculators/calc-ui";
 
 export function GoalSipCalculator() {
-  const [goal, setGoal] = useState("5000000");
+  const [goal, setGoal] = useState("");
   const [lumpsum, setLumpsum] = useState("");
   const [stepUp, setStepUp] = useState("");
-  const [rate, setRate] = useState("12");
-  const [years, setYears] = useState("10");
+  const [rate, setRate] = useState("");
+  const [years, setYears] = useState("");
 
   const goalN = parseAmount(goal);
   const lump = parseAmount(lumpsum);
@@ -43,28 +44,20 @@ export function GoalSipCalculator() {
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <CalcField label="Target corpus (₹)">
-          <Input
-            type="number"
-            min={0}
-            step={10000}
-            placeholder="e.g. 5000000"
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-          />
-        </CalcField>
-        <CalcField
+        <CalcMoneyInput
+          label="Target corpus (₹)"
+          placeholder="e.g. 5000000"
+          step={10000}
+          value={goal}
+          onChange={setGoal}
+        />
+        <CalcMoneyInput
           label="Starting lumpsum (₹)"
           hint="Already invested / investing now — leave blank if none"
-        >
-          <Input
-            type="number"
-            min={0}
-            placeholder="e.g. 100000"
-            value={lumpsum}
-            onChange={(e) => setLumpsum(e.target.value)}
-          />
-        </CalcField>
+          placeholder="e.g. 100000"
+          value={lumpsum}
+          onChange={setLumpsum}
+        />
         <CalcField
           label="SIP step-up % / year"
           hint="Leave blank for a constant monthly SIP"
@@ -76,6 +69,7 @@ export function GoalSipCalculator() {
             placeholder="e.g. 10"
             value={stepUp}
             onChange={(e) => setStepUp(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
         <CalcField label="Expected return % p.a.">
@@ -86,6 +80,7 @@ export function GoalSipCalculator() {
             placeholder="e.g. 12"
             value={rate}
             onChange={(e) => setRate(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
         <CalcField label="Years to goal">
@@ -96,6 +91,7 @@ export function GoalSipCalculator() {
             placeholder="e.g. 10"
             value={years}
             onChange={(e) => setYears(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
       </div>

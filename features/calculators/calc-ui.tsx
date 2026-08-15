@@ -1,7 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { amountInWords } from "@/utils/amount-in-words";
 
 /** Empty / invalid input → 0 for calculator math. */
 export function parseAmount(raw: string): number {
@@ -28,6 +30,58 @@ export function CalcField({
         <p className="text-[11px] text-muted-foreground">{hint}</p>
       ) : null}
     </div>
+  );
+}
+
+type CalcMoneyInputProps = {
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  step?: ComponentProps<"input">["step"];
+  className?: string;
+};
+
+/** Money field: blank by default, amount shown in words underneath. */
+export function CalcMoneyInput({
+  label,
+  hint,
+  value,
+  onChange,
+  placeholder = "e.g. 50000",
+  disabled,
+  step = 1,
+  className,
+}: CalcMoneyInputProps) {
+  const trimmed = value.trim();
+  const amount = parseAmount(value);
+  const words =
+    trimmed === "" || !Number.isFinite(amount)
+      ? null
+      : amountInWords(amount);
+
+  return (
+    <CalcField label={label} hint={hint}>
+      <Input
+        type="number"
+        min={0}
+        step={step}
+        inputMode="decimal"
+        placeholder={placeholder}
+        disabled={disabled}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={className}
+        autoComplete="off"
+      />
+      {words ? (
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          {words}
+        </p>
+      ) : null}
+    </CalcField>
   );
 }
 

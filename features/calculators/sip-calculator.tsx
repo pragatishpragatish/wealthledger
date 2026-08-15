@@ -9,6 +9,7 @@ import {
 } from "@/lib/calculations/investment";
 import {
   CalcField,
+  CalcMoneyInput,
   CalcStat,
   parseAmount,
 } from "@/features/calculators/calc-ui";
@@ -19,10 +20,10 @@ import {
  */
 export function SipCalculator() {
   const [lumpsum, setLumpsum] = useState("");
-  const [monthly, setMonthly] = useState("5000");
+  const [monthly, setMonthly] = useState("");
   const [stepUp, setStepUp] = useState("");
-  const [rate, setRate] = useState("12");
-  const [years, setYears] = useState("10");
+  const [rate, setRate] = useState("");
+  const [years, setYears] = useState("");
 
   const lump = parseAmount(lumpsum);
   const sip = parseAmount(monthly);
@@ -89,32 +90,22 @@ export function SipCalculator() {
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <CalcField
+        <CalcMoneyInput
           label="Lumpsum (₹)"
           hint="One-time amount at the start — leave blank if none"
-        >
-          <Input
-            type="number"
-            min={0}
-            step={1000}
-            placeholder="e.g. 50000"
-            value={lumpsum}
-            onChange={(e) => setLumpsum(e.target.value)}
-          />
-        </CalcField>
-        <CalcField
+          placeholder="e.g. 50000"
+          step={1000}
+          value={lumpsum}
+          onChange={setLumpsum}
+        />
+        <CalcMoneyInput
           label="Monthly SIP (₹)"
           hint="Recurring investment — leave blank for lumpsum only"
-        >
-          <Input
-            type="number"
-            min={0}
-            step={500}
-            placeholder="e.g. 5000"
-            value={monthly}
-            onChange={(e) => setMonthly(e.target.value)}
-          />
-        </CalcField>
+          placeholder="e.g. 5000"
+          step={500}
+          value={monthly}
+          onChange={setMonthly}
+        />
         <CalcField
           label="SIP step-up % / year"
           hint={
@@ -131,6 +122,7 @@ export function SipCalculator() {
             value={stepUp}
             disabled={sip <= 0}
             onChange={(e) => setStepUp(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
         <CalcField label="Expected return % p.a.">
@@ -141,6 +133,7 @@ export function SipCalculator() {
             placeholder="e.g. 12"
             value={rate}
             onChange={(e) => setRate(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
         <CalcField label="Tenure (years)">
@@ -151,6 +144,7 @@ export function SipCalculator() {
             placeholder="e.g. 10"
             value={years}
             onChange={(e) => setYears(e.target.value)}
+            autoComplete="off"
           />
         </CalcField>
       </div>

@@ -6,12 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { formatINR, formatPercent } from "@/utils/currency";
+import { amountInWords } from "@/utils/amount-in-words";
 import {
   calculateEMI,
   calculateInterestRate,
   calculatePrincipal,
   calculateTenure,
 } from "@/lib/calculations/loan";
+import { parseAmount } from "@/features/calculators/calc-ui";
 
 type CalcMode = "emi" | "tenure" | "rate" | "principal";
 
@@ -22,25 +24,68 @@ const MODES: { value: CalcMode; label: string; hint: string }[] = [
   { value: "principal", label: "EMI + R + T → P", hint: "Find principal" },
 ];
 
+function MoneyField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const trimmed = value.trim();
+  const amount = parseAmount(value);
+  const words =
+    trimmed === "" || !Number.isFinite(amount)
+      ? null
+      : amountInWords(amount);
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Input
+        type="number"
+        min={0}
+        inputMode="decimal"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete="off"
+      />
+      {words ? (
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          {words}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function EmiCalculator() {
   const [mode, setMode] = useState<CalcMode>("emi");
-  const [principal, setPrincipal] = useState(2500000);
-  const [rate, setRate] = useState(8.5);
-  const [tenure, setTenure] = useState(240);
-  const [emi, setEmi] = useState(21567);
+  const [principal, setPrincipal] = useState("");
+  const [rate, setRate] = useState("");
+  const [tenure, setTenure] = useState("");
+  const [emi, setEmi] = useState("");
+
+  const principalN = parseAmount(principal);
+  const rateN = parseAmount(rate);
+  const tenureN = parseAmount(tenure);
+  const emiN = parseAmount(emi);
 
   const result = useMemo(() => {
     switch (mode) {
       case "emi":
         return {
           label: "EMI",
-          value: formatINR(
-            calculateEMI(principal, rate, tenure),
-            { precise: true }
-          ),
+          value: formatINR(calculateEMI(principalN, rateN, tenureN), {
+            precise: true,
+          }),
         };
       case "tenure": {
-        const n = calculateTenure(principal, rate, emi);
+        const n = calculateTenure(principalN, rateN, emiN);
         return {
           label: "Tenure",
           value: Number.isFinite(n)
@@ -52,20 +97,19 @@ export function EmiCalculator() {
         return {
           label: "Interest rate",
           value: formatPercent(
-            calculateInterestRate(principal, emi, tenure),
+            calculateInterestRate(principalN, emiN, tenureN),
             2
           ),
         };
       case "principal":
         return {
           label: "Principal",
-          value: formatINR(
-            calculatePrincipal(emi, rate, tenure),
-            { precise: true }
-          ),
+          value: formatINR(calculatePrincipal(emiN, rateN, tenureN), {
+            precise: true,
+          }),
         };
     }
-  }, [mode, principal, rate, tenure, emi]);
+  }, [mode, principalN, rateN, tenureN, emiN]);
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
@@ -102,15 +146,12 @@ export function EmiCalculator() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {mode !== "principal" && (
-          <div className="space-y-2">
-            <Label>Principal (₹)</Label>
-            <Input
-              type="number"
-              min="0"
-              value={principal}
-              onChange={(e) => setPrincipal(Number(e.target.value) || 0)}
-            />
-          </div>
+          <MoneyField
+            label="Principal (₹)"
+            placeholder="e.g. 2500000"
+            value={principal}
+            onChange={setPrincipal}
+          />
         )}
         {mode !== "rate" && (
           <div className="space-y-2">
@@ -119,8 +160,10 @@ export function EmiCalculator() {
               type="number"
               step="0.01"
               min="0"
+              placeholder="e.g. 8.5"
               value={rate}
-              onChange={(e) => setRate(Number(e.target.value) || 0)}
+              onChange={(e) => setRate(e.target.value)}
+              autoComplete="off"
             />
           </div>
         )}
@@ -130,21 +173,20 @@ export function EmiCalculator() {
             <Input
               type="number"
               min="1"
+              placeholder="e.g. 240"
               value={tenure}
-              onChange={(e) => setTenure(Number(e.target.value) || 0)}
+              onChange={(e) => setTenure(e.target.value)}
+              autoComplete="off"
             />
           </div>
         )}
         {mode !== "emi" && (
-          <div className="space-y-2">
-            <Label>EMI (₹)</Label>
-            <Input
-              type="number"
-              min="0"
-              value={emi}
-              onChange={(e) => setEmi(Number(e.target.value) || 0)}
-            />
-          </div>
+          <MoneyField
+            label="EMI (₹)"
+            placeholder="e.g. 21500"
+            value={emi}
+            onChange={setEmi}
+          />
         )}
       </div>
 
