@@ -176,3 +176,228 @@ export function calculateCagr(opts: {
   if (start <= 0 || end <= 0 || years <= 0) return 0;
   return round2((Math.pow(end / start, 1 / years) - 1) * 100);
 }
+
+export type SwpResult = {
+  remainingCorpus: number;
+  totalWithdrawn: number;
+  interestEarned: number;
+  monthsLasted: number;
+  depleted: boolean;
+};
+
+/**
+ * Systematic Withdrawal Plan — monthly withdrawal at month-start,
+ * then monthly compounding on the balance.
+ */
+export function calculateSwp(opts: {
+  corpus: number;
+  monthlyWithdrawal: number;
+  annualRatePercent: number;
+  years: number;
+}): SwpResult {
+  const months = Math.max(0, Math.round(opts.years * 12));
+  const r = opts.annualRatePercent / 12 / 100;
+  const withdrawal = Math.max(0, opts.monthlyWithdrawal);
+  let balance = Math.max(0, opts.corpus);
+  let totalWithdrawn = 0;
+  let monthsLasted = 0;
+
+  for (let m = 1; m <= months; m++) {
+    if (balance <= 0) break;
+    const take = Math.min(withdrawal, balance);
+    balance -= take;
+    totalWithdrawn += take;
+    monthsLasted = m;
+    if (balance <= 0) {
+      const withdrawn = round2(totalWithdrawn);
+      return {
+        remainingCorpus: 0,
+        totalWithdrawn: withdrawn,
+        interestEarned: round2(withdrawn - opts.corpus),
+        monthsLasted,
+        depleted: true,
+      };
+    }
+    balance = balance * (1 + r);
+  }
+
+  const remaining = round2(balance);
+  const withdrawn = round2(totalWithdrawn);
+  return {
+    remainingCorpus: remaining,
+    totalWithdrawn: withdrawn,
+    interestEarned: round2(remaining + withdrawn - opts.corpus),
+    monthsLasted,
+    depleted: false,
+  };
+}
+
+/** Months until SWP corpus is exhausted (capped for safety). */
+export function swpMonthsUntilDepleted(opts: {
+  corpus: number;
+  monthlyWithdrawal: number;
+  annualRatePercent: number;
+  maxMonths?: number;
+}): number | null {
+  const maxMonths = opts.maxMonths ?? 1200;
+  const r = opts.annualRatePercent / 12 / 100;
+  const withdrawal = Math.max(0, opts.monthlyWithdrawal);
+  let balance = Math.max(0, opts.corpus);
+  if (withdrawal <= 0 || balance <= 0) return null;
+
+  for (let m = 1; m <= maxMonths; m++) {
+    const take = Math.min(withdrawal, balance);
+    balance -= take;
+    if (balance <= 0) return m;
+    balance = balance * (1 + r);
+  }
+  return null;
+}
+
+/**
+ * Max constant monthly withdrawal so corpus lasts exactly `years`
+ * (binary search on simulate).
+ */
+export function maxSustainableWithdrawal(opts: {
+  corpus: number;
+  annualRatePercent: number;
+  years: number;
+}): number {
+  const corpus = Math.max(0, opts.corpus);
+  const months = Math.max(0, Math.round(opts.years * 12));
+  if (corpus <= 0 || months <= 0) return 0;
+
+  let lo = 0;
+  let hi = corpus;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    const { remainingCorpus, depleted } = calculateSwp({
+      corpus,
+      monthlyWithdrawal: mid,
+      annualRatePercent: opts.annualRatePercent,
+      years: opts.years,
+    });
+    if (depleted || remainingCorpus < 1) hi = mid;
+    else lo = mid;
+  }
+  return round2(lo);
+}
+
+/** Lumpsum needed today to reach a future goal. */
+export function requiredLumpsum(opts: {
+  goalAmount: number;
+  annualRatePercent: number;
+  years: number;
+}): number {
+  const goal = Math.max(0, opts.goalAmount);
+  const years = Math.max(0, opts.years);
+  if (goal <= 0 || years <= 0) return 0;
+  const months = Math.round(years * 12);
+  const r = opts.annualRatePercent / 12 / 100;
+  if (r === 0) return round2(goal);
+  return round2(goal / Math.pow(1 + r, months));
+}
+
+/**
+ * PPF-style yearly deposits with annual compounding
+ * (simplified — deposits earn for the full year).
+ */
+export function calculatePpf(opts: {
+  annualContribution: number;
+  annualRatePercent: number;
+  years?: number;
+}): { maturity: number; invested: number; interest: number } {
+  const years = Math.max(0, Math.round(opts.years ?? 15));
+  const rate = opts.annualRatePercent / 100;
+  const deposit = Math.max(0, opts.annualContribution);
+  let balance = 0;
+  let invested = 0;
+
+  for (let y = 1; y <= years; y++) {
+    balance += deposit;
+    invested += deposit;
+    balance = balance * (1 + rate);
+  }
+
+  return {
+    maturity: round2(balance),
+    invested: round2(invested),
+    interest: round2(balance - invested),
+  };
+}
+
+export type RetirementCorpusResult = {
+  expenseAtRetirement: number;
+  corpusNeeded: number;
+  existingAtRetirement: number;
+  gap: number;
+  monthlySipNeeded: number;
+};
+
+/**
+ * Corpus needed at retirement from today's expenses,
+ * then SIP to close the gap after growing any existing corpus.
+ */
+export function calculateRetirementCorpus(opts: {
+  monthlyExpenseToday: number;
+  yearsToRetirement: number;
+  inflationPercent: number;
+  accumulationReturnPercent: number;
+  retirementReturnPercent: number;
+  yearsInRetirement: number;
+  existingCorpus?: number;
+}): RetirementCorpusResult {
+  const expenseToday = Math.max(0, opts.monthlyExpenseToday);
+  const yearsTo = Math.max(0, opts.yearsToRetirement);
+  const inflation = opts.inflationPercent / 100;
+  const yearsRetire = Math.max(0, opts.yearsInRetirement);
+  const existing = Math.max(0, opts.existingCorpus ?? 0);
+
+  const expenseAtRetirement = round2(
+    expenseToday * Math.pow(1 + inflation, yearsTo)
+  );
+
+  let corpusNeeded = 0;
+  if (expenseAtRetirement > 0 && yearsRetire > 0) {
+    let lo = 0;
+    let hi = expenseAtRetirement * yearsRetire * 12 * 4;
+    for (let i = 0; i < 60; i++) {
+      const mid = (lo + hi) / 2;
+      const maxW = maxSustainableWithdrawal({
+        corpus: mid,
+        annualRatePercent: opts.retirementReturnPercent,
+        years: yearsRetire,
+      });
+      if (maxW < expenseAtRetirement) lo = mid;
+      else hi = mid;
+    }
+    corpusNeeded = round2(hi);
+  }
+
+  const existingAtRetirement =
+    yearsTo > 0
+      ? calculateLumpsumGrowth({
+          principal: existing,
+          annualRatePercent: opts.accumulationReturnPercent,
+          years: yearsTo,
+        }).futureValue
+      : round2(existing);
+
+  const gap = Math.max(0, corpusNeeded - existingAtRetirement);
+  const monthlySipNeeded =
+    yearsTo > 0
+      ? requiredMonthlySip({
+          goalAmount: gap,
+          annualRatePercent: opts.accumulationReturnPercent,
+          years: yearsTo,
+        })
+      : 0;
+
+  return {
+    expenseAtRetirement,
+    corpusNeeded,
+    existingAtRetirement,
+    gap,
+    monthlySipNeeded,
+  };
+}

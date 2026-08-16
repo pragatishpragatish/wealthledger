@@ -7,18 +7,26 @@ import {
   LineChart,
   PiggyBank,
   Target,
+  TrendingDown,
   TrendingUp,
+  Wallet,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { SipCalculator } from "@/features/calculators/sip-calculator";
 import { GoalSipCalculator } from "@/features/calculators/goal-sip-calculator";
+import { SwpCalculator } from "@/features/calculators/swp-calculator";
 import {
   CagrCalculator,
   FdCalculator,
   InflationCalculator,
   RdCalculator,
 } from "@/features/calculators/investment-calculators";
+import {
+  LumpsumGoalCalculator,
+  PpfCalculator,
+  RetirementCalculator,
+} from "@/features/calculators/planning-calculators";
 import { LoanCalculatorsPanel } from "@/features/calculators/loan-calculators";
 
 const TOOLS = [
@@ -37,6 +45,13 @@ const TOOLS = [
     group: "Invest",
   },
   {
+    id: "swp",
+    label: "SWP",
+    description: "Withdrawals, runway & remaining corpus",
+    icon: TrendingDown,
+    group: "Invest",
+  },
+  {
     id: "fd",
     label: "FD",
     description: "Fixed deposit maturity",
@@ -51,11 +66,32 @@ const TOOLS = [
     group: "Invest",
   },
   {
+    id: "ppf",
+    label: "PPF",
+    description: "Public Provident Fund maturity",
+    icon: PiggyBank,
+    group: "Invest",
+  },
+  {
     id: "loan",
     label: "Loan / EMI",
     description: "EMI, affordability, lumpsum payoff",
     icon: Landmark,
     group: "Borrow",
+  },
+  {
+    id: "retirement",
+    label: "Retirement",
+    description: "Corpus needed & SIP to get there",
+    icon: Wallet,
+    group: "Plan",
+  },
+  {
+    id: "lumpsum-goal",
+    label: "Lumpsum goal",
+    description: "How much to invest today for a target",
+    icon: Target,
+    group: "Plan",
   },
   {
     id: "inflation",
@@ -83,7 +119,7 @@ export function CalculatorsView() {
     <div className="space-y-6">
       <PageHeader
         title="Calculators"
-        description="Plan SIPs, loans, deposits and goals — numbers stay on your device."
+        description="Plan SIPs, SWP, retirement, deposits and loans — numbers stay on your device."
       />
 
       <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
@@ -145,9 +181,13 @@ export function CalculatorsView() {
           <div className="min-w-0">
             {active === "sip" && <SipCalculator />}
             {active === "goal" && <GoalSipCalculator />}
+            {active === "swp" && <SwpCalculator />}
             {active === "fd" && <FdCalculator />}
             {active === "rd" && <RdCalculator />}
+            {active === "ppf" && <PpfCalculator />}
             {active === "loan" && <LoanCalculatorsPanel />}
+            {active === "retirement" && <RetirementCalculator />}
+            {active === "lumpsum-goal" && <LumpsumGoalCalculator />}
             {active === "inflation" && <InflationCalculator />}
             {active === "cagr" && <CagrCalculator />}
           </div>
