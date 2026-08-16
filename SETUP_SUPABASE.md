@@ -191,12 +191,14 @@ This creates all tables, RLS policies, storage buckets, and the signup trigger.
    5. `supabase/migrations/005_credit_card_billing_days.sql` (billing/due days 1–31)
    6. `supabase/migrations/006_extra_categories.sql` (Subscriptions, Gym, Trading/Stock returns)
    7. `supabase/migrations/007_recurring_budgets.sql` (recurring budgets + amount edit history)
+   8. `supabase/migrations/008_credit_card_emis.sql` (credit card EMI plans)
 
 4. Click **Run** for each (or paste both if preferred, one after the other).
 5. Confirm you see **Success** (no red errors).
 
 Migration **002** adds the quarterly investment-value reminder notification type and settings toggle.  
 Migration **003** adds SIP fields on investments (monthly MF SIPs).
+Migration **008** adds `credit_card_emis` and a `converted_to_emi` flag on card transactions (pay from account + convert to EMI on the card detail page).
 
 What this creates:
 

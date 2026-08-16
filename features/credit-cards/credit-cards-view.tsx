@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   CalendarClock,
   CreditCard,
+  Eye,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -11,7 +14,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -45,6 +48,7 @@ function utilizationTone(pct: number) {
 
 export function CreditCardsView({ data }: { data: CreditCardsPageData }) {
   const { cards, summary } = data;
+  const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<CreditCardComputed | null>(null);
   const [deleting, setDeleting] = useState<CreditCardComputed | null>(null);
@@ -77,7 +81,7 @@ export function CreditCardsView({ data }: { data: CreditCardsPageData }) {
     <div className="space-y-6">
       <PageHeader
         title="Credit Cards"
-        description="Limits, utilization, statement dues and payment reminders."
+        description="Limits, utilization, statement dues, payoffs and EMI plans."
         action={
           <Button onClick={openCreate}>
             <Plus className="size-4" />
@@ -125,9 +129,12 @@ export function CreditCardsView({ data }: { data: CreditCardsPageData }) {
                 className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-medium">
+                  <Link
+                    href={`/credit-cards/${card.id}`}
+                    className="truncate font-medium hover:underline"
+                  >
                     {card.bank} {card.card_name}
-                  </p>
+                  </Link>
                   <p className="text-xs text-muted-foreground">
                     Statement due {formatDisplayDate(card.statement_due_date)} ·
                     Min {formatINR(card.minimum_due)}
@@ -156,7 +163,7 @@ export function CreditCardsView({ data }: { data: CreditCardsPageData }) {
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {cards.map((card, i) => {
+          {cards.map((card) => {
             const tone = utilizationTone(card.utilization);
             return (
               <div
@@ -165,9 +172,12 @@ export function CreditCardsView({ data }: { data: CreditCardsPageData }) {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate font-heading text-base font-semibold">
+                    <Link
+                      href={`/credit-cards/${card.id}`}
+                      className="block truncate font-heading text-base font-semibold hover:underline"
+                    >
                       {card.card_name}
-                    </p>
+                    </Link>
                     <p className="text-sm text-muted-foreground">
                       {card.bank}
                       {card.last_four ? ` · •••• ${card.last_four}` : ""}
@@ -181,6 +191,12 @@ export function CreditCardsView({ data }: { data: CreditCardsPageData }) {
                       <span className="sr-only">Actions</span>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => router.push(`/credit-cards/${card.id}`)}
+                      >
+                        <Eye className="size-4" />
+                        View details
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => openEdit(card)}>
                         <Pencil className="size-4" />
                         Edit
@@ -289,27 +305,18 @@ export function CreditCardsView({ data }: { data: CreditCardsPageData }) {
                         {formatPercent(card.interest_rate)}
                       </p>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Next statement</p>
-                      <p className="mt-0.5 font-medium tabular-nums">
-                        {formatDisplayDate(card.next_statement_date)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">
-                        {card.has_payable_statement
-                          ? "Statement due"
-                          : "Next due"}
-                      </p>
-                      <p className="mt-0.5 font-medium tabular-nums">
-                        {formatDisplayDate(
-                          card.has_payable_statement
-                            ? card.statement_due_date
-                            : card.next_due_date
-                        )}
-                      </p>
-                    </div>
                   </div>
+
+                  <Link
+                    href={`/credit-cards/${card.id}`}
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "mt-1 w-full"
+                    )}
+                  >
+                    <Eye className="size-4" />
+                    Open details
+                  </Link>
                 </div>
               </div>
             );

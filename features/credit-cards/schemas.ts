@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CREDIT_CARD_REWARD_TYPES } from "@/lib/constants";
 import {
+  dateStringSchema,
   nonNegativeMoneySchema,
   optionalNullableString,
   positiveMoneySchema,
@@ -52,3 +53,43 @@ export const creditCardSchema = z.object({
 });
 
 export type CreditCardFormValues = z.infer<typeof creditCardSchema>;
+
+export const creditCardPaymentSchema = z.object({
+  account_id: z.string().uuid("Select an account"),
+  amount: positiveMoneySchema,
+  date: dateStringSchema,
+  notes: optionalNullableString,
+});
+
+export type CreditCardPaymentValues = z.infer<typeof creditCardPaymentSchema>;
+
+export const convertToEmiSchema = z.object({
+  source_transaction_id: z
+    .union([z.string().uuid(), z.literal(""), z.null()])
+    .optional()
+    .transform((v) => (v == null || v === "" ? null : v)),
+  description: z.string().trim().min(1, "Description is required").max(200),
+  principal: positiveMoneySchema,
+  interest_rate: z.coerce
+    .number({ invalid_type_error: "Enter a valid rate" })
+    .min(0)
+    .max(100),
+  tenure_months: z.coerce
+    .number({ invalid_type_error: "Enter tenure" })
+    .int()
+    .min(1, "At least 1 month")
+    .max(96, "Max 96 months"),
+  processing_fee: nonNegativeMoneySchema,
+  start_date: dateStringSchema,
+});
+
+export type ConvertToEmiValues = z.infer<typeof convertToEmiSchema>;
+
+export const recordEmiPaymentSchema = z.object({
+  emi_id: z.string().uuid(),
+  account_id: z.string().uuid("Select an account"),
+  date: dateStringSchema,
+  notes: optionalNullableString,
+});
+
+export type RecordEmiPaymentValues = z.infer<typeof recordEmiPaymentSchema>;

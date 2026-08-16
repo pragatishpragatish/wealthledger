@@ -174,6 +174,41 @@ export interface CreditCard {
   updated_at: string;
 }
 
+export interface CreditCardTransaction {
+  id: string;
+  user_id: string;
+  credit_card_id: string;
+  transaction_id: string | null;
+  date: string;
+  amount: number;
+  description: string | null;
+  merchant: string | null;
+  category_id: string | null;
+  is_payment: boolean;
+  converted_to_emi: boolean;
+  created_at: string;
+  category?: Category | null;
+}
+
+export interface CreditCardEmi {
+  id: string;
+  user_id: string;
+  credit_card_id: string;
+  source_transaction_id: string | null;
+  description: string;
+  principal: number;
+  interest_rate: number;
+  tenure_months: number;
+  emi_amount: number;
+  start_date: string;
+  emis_paid: number;
+  outstanding_principal: number;
+  processing_fee: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Loan {
   id: string;
   user_id: string;
