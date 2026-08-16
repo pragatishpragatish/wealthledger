@@ -221,10 +221,10 @@ export function CreditCardDetailView({ data }: { data: CreditCardDetailData }) {
                       "shrink-0 tabular-nums font-medium",
                       tx.is_payment
                         ? "text-emerald-700 dark:text-emerald-400"
-                        : "text-foreground"
+                        : "text-rose-700 dark:text-rose-400"
                     )}
                   >
-                    {tx.is_payment ? "−" : "+"}
+                    {tx.is_payment ? "+" : "−"}
                     {formatINR(tx.amount)}
                   </span>
                 </li>
