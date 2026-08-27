@@ -123,6 +123,8 @@ export const INVESTMENT_PLATFORMS = [
   "SBI",
   "ICICI Direct",
   "Angel One",
+  "Dhan",
+  "Lemonn",
   "Other",
 ] as const;
 
