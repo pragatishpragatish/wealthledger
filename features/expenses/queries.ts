@@ -375,6 +375,7 @@ export async function getExpensesPageData(opts?: {
         .select("id, name, bank_name, current_balance")
         .eq("user_id", user.id)
         .eq("is_active", true)
+        .neq("account_type", "broker_wallet")
         .order("name"),
       supabase
         .from("credit_cards")

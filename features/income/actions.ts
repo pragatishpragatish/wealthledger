@@ -25,13 +25,16 @@ async function adjustAccountBalance(
 ): Promise<string | null> {
   const { data: account, error } = await supabase
     .from("accounts")
-    .select("id, current_balance")
+    .select("id, current_balance, account_type")
     .eq("id", accountId)
     .eq("user_id", userId)
     .maybeSingle();
 
   if (error) return error.message;
   if (!account) return "Account not found";
+  if (account.account_type === "broker_wallet") {
+    return "Broker wallets are funded via Transfers from a bank account only";
+  }
 
   const next = Number(account.current_balance) + delta;
   const { error: updateError } = await supabase

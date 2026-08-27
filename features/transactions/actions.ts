@@ -151,6 +151,31 @@ function toRow(
   };
 }
 
+/** Broker wallets may only move money via transfers. */
+async function assertSpendAccountAllowed(
+  supabase: SupabaseClient,
+  userId: string,
+  type: TransactionType,
+  accountId: string | null
+): Promise<string | null> {
+  if (!accountId) return null;
+  if (type === "transfer") return null;
+
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("account_type")
+    .eq("id", accountId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) return error.message;
+  if (!data) return "Account not found";
+  if (data.account_type === "broker_wallet") {
+    return "Broker wallets are funded via Transfers from a bank account only";
+  }
+  return null;
+}
+
 export async function createTransaction(
   input: unknown
 ): Promise<TransactionActionResult> {
@@ -161,6 +186,14 @@ export async function createTransaction(
 
   const { supabase, user } = await requireUser();
   const values = normalizeTransactionValues(parsed.data);
+
+  const spendErr = await assertSpendAccountAllowed(
+    supabase,
+    user.id,
+    values.type,
+    values.account_id
+  );
+  if (spendErr) return { error: spendErr };
 
   try {
     const { data, error } = await supabase
@@ -203,6 +236,14 @@ export async function updateTransaction(
 
   const { supabase, user } = await requireUser();
   const values = normalizeTransactionValues(parsed.data);
+
+  const spendErr = await assertSpendAccountAllowed(
+    supabase,
+    user.id,
+    values.type,
+    values.account_id
+  );
+  if (spendErr) return { error: spendErr };
 
   try {
     const { data: previous, error: fetchError } = await supabase

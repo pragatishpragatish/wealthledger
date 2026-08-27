@@ -114,6 +114,13 @@ export function TransactionForm({
 
   const type = form.watch("type");
 
+  const spendAccounts = useMemo(
+    () => accounts.filter((a) => a.account_type !== "broker_wallet"),
+    [accounts]
+  );
+  /** Income / expense / adjustment: banks & wallets only. Transfers: all accounts. */
+  const selectableAccounts = type === "transfer" ? accounts : spendAccounts;
+
   const filteredCategories = useMemo(() => {
     if (type === "income") {
       return categories.filter((c) => c.kind === "income");
@@ -129,6 +136,16 @@ export function TransactionForm({
       form.reset(defaults(transaction));
     }
   }, [open, transaction, form]);
+
+  useEffect(() => {
+    if (type === "transfer") return;
+    const fromId = form.getValues("account_id");
+    if (!fromId) return;
+    const selected = accounts.find((a) => a.id === fromId);
+    if (selected?.account_type === "broker_wallet") {
+      form.setValue("account_id", null);
+    }
+  }, [type, accounts, form]);
 
   function onSubmit(values: TransactionFormValues) {
     startTransition(async () => {
@@ -251,7 +268,7 @@ export function TransactionForm({
                     onValueChange={(v) =>
                       field.onChange(v === "" || v == null ? null : v)
                     }
-                    items={accounts.map((a) => ({
+                    items={selectableAccounts.map((a) => ({
                       value: a.id,
                       label: accountLabel(a),
                     }))}
@@ -260,7 +277,7 @@ export function TransactionForm({
                       <SelectValue placeholder="Select account" />
                     </SelectTrigger>
                     <SelectContent>
-                      {accounts.map((a) => (
+                      {selectableAccounts.map((a) => (
                         <SelectItem key={a.id} value={a.id}>
                           {accountLabel(a)}
                         </SelectItem>
@@ -312,8 +329,8 @@ export function TransactionForm({
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Move money between bank accounts and broker wallets (e.g. HDFC →
-                  Dhan).
+                  Fund broker wallets from a bank account (e.g. HDFC → Dhan).
+                  Broker wallets cannot be used for income or expenses.
                 </p>
               </div>
             )}
@@ -422,7 +439,7 @@ export function TransactionForm({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={pending || accounts.length === 0}>
+            <Button type="submit" disabled={pending || selectableAccounts.length === 0}>
               {pending && <Loader2 className="size-4 animate-spin" />}
               {isEdit ? "Save changes" : "Add transaction"}
             </Button>
