@@ -43,6 +43,7 @@ export type InvestmentsSummary = {
   profitLossPercent: number;
   count: number;
   allocation: AllocationPoint[];
+  allocationByPlatform: AllocationPoint[];
 };
 
 export type InvestmentsPageData = {
@@ -145,21 +146,36 @@ export async function getInvestments(opts?: {
 
 export async function getInvestmentsPageData(): Promise<InvestmentsPageData> {
   const investments = await getInvestments();
+  return {
+    investments,
+    summary: summarizeInvestments(investments),
+  };
+}
 
+/** Build portfolio summary + charts from any investment subset (used by filters). */
+export function summarizeInvestments(
+  investments: InvestmentComputed[]
+): InvestmentsSummary {
   const portfolioValue = investments.reduce((s, i) => s + i.current_value, 0);
   const invested = investments.reduce((s, i) => s + i.invested_amount, 0);
   const profitLoss = Math.round((portfolioValue - invested) * 100) / 100;
   const profitLossPercent =
     invested > 0 ? Math.round((profitLoss / invested) * 10000) / 100 : 0;
 
-  const byType = new Map<string, number>();
-  for (const inv of investments) {
-    byType.set(inv.type, (byType.get(inv.type) ?? 0) + inv.current_value);
-  }
-
   const labelMap = Object.fromEntries(
     INVESTMENT_TYPES.map((t) => [t.value, t.label])
   ) as Record<string, string>;
+
+  const byType = new Map<string, number>();
+  const byPlatform = new Map<string, number>();
+  for (const inv of investments) {
+    byType.set(inv.type, (byType.get(inv.type) ?? 0) + inv.current_value);
+    const platform = inv.platform?.trim() || "Unspecified";
+    byPlatform.set(
+      platform,
+      (byPlatform.get(platform) ?? 0) + inv.current_value
+    );
+  }
 
   const allocation: AllocationPoint[] = Array.from(byType.entries())
     .filter(([, value]) => value > 0)
@@ -170,15 +186,37 @@ export async function getInvestmentsPageData(): Promise<InvestmentsPageData> {
     }))
     .sort((a, b) => b.value - a.value);
 
+  const PLATFORM_COLORS = [
+    "#0F766E",
+    "#2563EB",
+    "#CA8A04",
+    "#7C3AED",
+    "#EA580C",
+    "#0891B2",
+    "#BE185D",
+    "#059669",
+    "#4F46E5",
+    "#64748B",
+  ];
+
+  const allocationByPlatform: AllocationPoint[] = Array.from(
+    byPlatform.entries()
+  )
+    .filter(([, value]) => value > 0)
+    .map(([name, value], i) => ({
+      name,
+      value: Math.round(value * 100) / 100,
+      color: PLATFORM_COLORS[i % PLATFORM_COLORS.length]!,
+    }))
+    .sort((a, b) => b.value - a.value);
+
   return {
-    investments,
-    summary: {
-      portfolioValue,
-      invested,
-      profitLoss,
-      profitLossPercent,
-      count: investments.length,
-      allocation,
-    },
+    portfolioValue,
+    invested,
+    profitLoss,
+    profitLossPercent,
+    count: investments.length,
+    allocation,
+    allocationByPlatform,
   };
 }

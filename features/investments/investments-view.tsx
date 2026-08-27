@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import {
+  ArrowUpDown,
   History,
   LineChart,
   MoreHorizontal,
@@ -21,6 +22,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDeleteDialog } from "@/components/shared/confirm-delete-dialog";
@@ -33,17 +41,77 @@ import { deleteInvestment } from "@/features/investments/actions";
 import { InvestmentForm } from "@/features/investments/investment-form";
 import { ContributionForm } from "@/features/investments/contribution-form";
 import { ContributionHistoryDialog } from "@/features/investments/contribution-history-dialog";
-import type {
-  InvestmentComputed,
-  InvestmentsPageData,
+import {
+  summarizeInvestments,
+  type InvestmentComputed,
+  type InvestmentsPageData,
 } from "@/features/investments/queries";
 
 const typeLabel = Object.fromEntries(
   INVESTMENT_TYPES.map((t) => [t.value, t.label])
 ) as Record<string, string>;
 
+const SORT_OPTIONS = [
+  { value: "value-desc", label: "Value · high to low" },
+  { value: "value-asc", label: "Value · low to high" },
+  { value: "invested-desc", label: "Invested · high to low" },
+  { value: "gain-desc", label: "Gain · high to low" },
+  { value: "gain-asc", label: "Gain · low to high" },
+  { value: "gain-pct-desc", label: "Return % · high to low" },
+  { value: "name-asc", label: "Name · A to Z" },
+  { value: "name-desc", label: "Name · Z to A" },
+  { value: "type-asc", label: "Type" },
+  { value: "platform-asc", label: "Broker" },
+  { value: "date-desc", label: "Purchase date · newest" },
+] as const;
+
+type SortId = (typeof SORT_OPTIONS)[number]["value"];
+
+function sortInvestments(
+  list: InvestmentComputed[],
+  sort: SortId
+): InvestmentComputed[] {
+  const next = [...list];
+  const cmp = (a: number, b: number) => a - b;
+  next.sort((a, b) => {
+    switch (sort) {
+      case "value-desc":
+        return cmp(b.current_value, a.current_value);
+      case "value-asc":
+        return cmp(a.current_value, b.current_value);
+      case "invested-desc":
+        return cmp(b.invested_amount, a.invested_amount);
+      case "gain-desc":
+        return cmp(b.gain, a.gain);
+      case "gain-asc":
+        return cmp(a.gain, b.gain);
+      case "gain-pct-desc":
+        return cmp(b.gain_percent, a.gain_percent);
+      case "name-asc":
+        return a.name.localeCompare(b.name);
+      case "name-desc":
+        return b.name.localeCompare(a.name);
+      case "type-asc":
+        return (typeLabel[a.type] ?? a.type).localeCompare(
+          typeLabel[b.type] ?? b.type
+        );
+      case "platform-asc":
+        return (a.platform ?? "zzz").localeCompare(b.platform ?? "zzz");
+      case "date-desc":
+        return (b.purchase_date ?? "").localeCompare(a.purchase_date ?? "");
+      default:
+        return 0;
+    }
+  });
+  return next;
+}
+
 export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
-  const { investments, summary } = data;
+  const { investments: allInvestments } = data;
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [brokerFilter, setBrokerFilter] = useState<string>("all");
+  const [sort, setSort] = useState<SortId>("value-desc");
+
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<InvestmentComputed | null>(null);
   const [contributing, setContributing] = useState<InvestmentComputed | null>(
@@ -52,6 +120,48 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
   const [historyFor, setHistoryFor] = useState<InvestmentComputed | null>(null);
   const [deleting, setDeleting] = useState<InvestmentComputed | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const brokerOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const inv of allInvestments) {
+      const p = inv.platform?.trim();
+      if (p) set.add(p);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [allInvestments]);
+
+  const typeOptions = useMemo(() => {
+    const present = new Set(allInvestments.map((i) => i.type));
+    return INVESTMENT_TYPES.filter((t) => present.has(t.value));
+  }, [allInvestments]);
+
+  const filtered = useMemo(() => {
+    return allInvestments.filter((inv) => {
+      if (typeFilter !== "all" && inv.type !== typeFilter) return false;
+      if (brokerFilter === "all") return true;
+      if (brokerFilter === "__none__") {
+        return !inv.platform?.trim();
+      }
+      return (inv.platform ?? "") === brokerFilter;
+    });
+  }, [allInvestments, typeFilter, brokerFilter]);
+
+  const investments = useMemo(
+    () => sortInvestments(filtered, sort),
+    [filtered, sort]
+  );
+
+  const summary = useMemo(
+    () => summarizeInvestments(investments),
+    [investments]
+  );
+
+  const hasUnspecifiedBroker = useMemo(
+    () => allInvestments.some((i) => !i.platform?.trim()),
+    [allInvestments]
+  );
+
+  const filtersActive = typeFilter !== "all" || brokerFilter !== "all";
 
   function openCreate() {
     setEditing(null);
@@ -76,6 +186,11 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
     });
   }
 
+  function clearFilters() {
+    setTypeFilter("all");
+    setBrokerFilter("all");
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -88,6 +203,98 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
           </Button>
         }
       />
+
+      {allInvestments.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:p-4">
+          <Select
+            value={typeFilter}
+            onValueChange={(v) => {
+              if (v != null) setTypeFilter(v);
+            }}
+            items={{
+              all: "All types",
+              ...Object.fromEntries(
+                typeOptions.map((t) => [t.value, t.label])
+              ),
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-[11.5rem]">
+              <SelectValue placeholder="Type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              {typeOptions.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={brokerFilter}
+            onValueChange={(v) => {
+              if (v != null) setBrokerFilter(v);
+            }}
+            items={{
+              all: "All brokers",
+              ...Object.fromEntries(brokerOptions.map((b) => [b, b])),
+              ...(hasUnspecifiedBroker
+                ? { __none__: "No broker set" }
+                : {}),
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-[11.5rem]">
+              <SelectValue placeholder="Broker" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All brokers</SelectItem>
+              {brokerOptions.map((b) => (
+                <SelectItem key={b} value={b}>
+                  {b}
+                </SelectItem>
+              ))}
+              {hasUnspecifiedBroker ? (
+                <SelectItem value="__none__">No broker set</SelectItem>
+              ) : null}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={sort}
+            onValueChange={(v) => {
+              if (v != null) setSort(v as SortId);
+            }}
+            items={Object.fromEntries(
+              SORT_OPTIONS.map((o) => [o.value, o.label])
+            )}
+          >
+            <SelectTrigger className="w-full sm:w-[14rem]">
+              <ArrowUpDown className="size-3.5 opacity-60" />
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              {SORT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {filtersActive ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="sm:ml-auto"
+              onClick={clearFilters}
+            >
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <SummaryTile
@@ -116,56 +323,75 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="min-w-0">
-          <AllocationChart title="Allocation by type" data={summary.allocation} />
+      {allInvestments.length > 0 ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="min-w-0">
+            <AllocationChart
+              title={
+                filtersActive
+                  ? "Allocation by type (filtered)"
+                  : "Allocation by type"
+              }
+              data={summary.allocation}
+            />
+          </div>
+          <div className="min-w-0">
+            <AllocationChart
+              title={
+                filtersActive
+                  ? "Allocation by broker (filtered)"
+                  : "Allocation by broker"
+              }
+              data={summary.allocationByPlatform}
+            />
+          </div>
         </div>
+      ) : null}
+
+      {allInvestments.length > 0 && investments.length > 0 ? (
         <div className="min-w-0 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
           <h3 className="mb-4 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-            Holdings ({summary.count})
+            Holdings ({summary.count}
+            {filtersActive ? ` of ${allInvestments.length}` : ""})
           </h3>
-          {investments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No holdings yet.</p>
-          ) : (
-            <ul className="divide-y divide-border/60">
-              {investments.slice(0, 6).map((inv) => (
-                <li
-                  key={inv.id}
-                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{inv.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {typeLabel[inv.type] ?? inv.type}
-                      {inv.contribution_count > 0
-                        ? ` · ${inv.contribution_count} entries`
-                        : ""}
-                      {inv.platform ? ` · ${inv.platform}` : ""}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="tabular-nums font-medium">
-                      {formatINR(inv.current_value)}
-                    </p>
-                    <p
-                      className={cn(
-                        "text-xs tabular-nums",
-                        inv.gain >= 0
-                          ? "text-emerald-700 dark:text-emerald-400"
-                          : "text-rose-600 dark:text-rose-400"
-                      )}
-                    >
-                      {formatSignedINR(inv.gain)}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ul className="divide-y divide-border/60">
+            {investments.slice(0, 6).map((inv) => (
+              <li
+                key={inv.id}
+                className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{inv.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {typeLabel[inv.type] ?? inv.type}
+                    {inv.contribution_count > 0
+                      ? ` · ${inv.contribution_count} entries`
+                      : ""}
+                    {inv.platform ? ` · ${inv.platform}` : ""}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="tabular-nums font-medium">
+                    {formatINR(inv.current_value)}
+                  </p>
+                  <p
+                    className={cn(
+                      "text-xs tabular-nums",
+                      inv.gain >= 0
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    )}
+                  >
+                    {formatSignedINR(inv.gain)}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
-      </div>
+      ) : null}
 
-      {investments.length === 0 ? (
+      {allInvestments.length === 0 ? (
         <EmptyState
           icon={LineChart}
           title="No investments yet"
@@ -177,9 +403,19 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
             </Button>
           }
         />
+      ) : investments.length === 0 ? (
+        <EmptyState
+          icon={LineChart}
+          title="No matching investments"
+          description="Try another type or broker, or clear filters."
+          action={
+            <Button variant="outline" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
       ) : (
         <>
-          {/* Mobile: stacked cards */}
           <div className="space-y-3 md:hidden">
             {investments.map((inv) => {
               const latest = inv.contributions[0];
@@ -271,7 +507,6 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
             })}
           </div>
 
-          {/* Desktop table */}
           <div className="hidden overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm md:block">
             <div className="overflow-x-auto overscroll-x-contain">
               <table className="w-full text-sm">
