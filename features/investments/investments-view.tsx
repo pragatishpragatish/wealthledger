@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  RefreshCw,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -38,7 +39,10 @@ import { formatINR, formatPercent, formatSignedINR } from "@/utils/currency";
 import { formatDisplayDate } from "@/utils/date";
 import { INVESTMENT_TYPES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { deleteInvestment } from "@/features/investments/actions";
+import {
+  deleteInvestment,
+  refreshInvestmentPrices,
+} from "@/features/investments/actions";
 import { InvestmentForm } from "@/features/investments/investment-form";
 import { ContributionForm } from "@/features/investments/contribution-form";
 import { ContributionHistoryDialog } from "@/features/investments/contribution-history-dialog";
@@ -48,6 +52,7 @@ import {
 } from "@/features/investments/summary";
 import type { InvestmentsPageDataWithAccounts } from "@/features/investments/queries";
 import { TradingPnlDialog } from "@/features/investments/trading-pnl-dialog";
+import { canAutoPrice } from "@/lib/market-data/update-prices";
 
 const typeLabel = Object.fromEntries(
   INVESTMENT_TYPES.map((t) => [t.value, t.label])
@@ -127,6 +132,20 @@ export function InvestmentsView({
   const [historyFor, setHistoryFor] = useState<InvestmentComputed | null>(null);
   const [deleting, setDeleting] = useState<InvestmentComputed | null>(null);
   const [pending, startTransition] = useTransition();
+  const [refreshing, startRefresh] = useTransition();
+
+  const pricedCount = useMemo(
+    () =>
+      allInvestments.filter(
+        (i) => canAutoPrice(i.type) && Boolean(i.symbol?.trim())
+      ).length,
+    [allInvestments]
+  );
+
+  const canRefreshPrices = useMemo(
+    () => allInvestments.some((i) => canAutoPrice(i.type)),
+    [allInvestments]
+  );
 
   const brokerOptions = useMemo(() => {
     const set = new Set<string>();
@@ -193,6 +212,23 @@ export function InvestmentsView({
     });
   }
 
+  function handleRefreshPrices() {
+    if (pricedCount === 0) {
+      toast.message(
+        "Add a Yahoo ticker (e.g. RELIANCE.NS) or AMFI scheme code on each holding first"
+      );
+      return;
+    }
+    startRefresh(async () => {
+      const result = await refreshInvestmentPrices();
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(result.message ?? "Prices updated");
+    });
+  }
+
   function clearFilters() {
     setTypeFilter("all");
     setBrokerFilter("all");
@@ -205,6 +241,18 @@ export function InvestmentsView({
         description="Track holdings and log each top-up with its date — same fund, many entries."
         action={
           <div className="flex flex-wrap gap-2">
+            {canRefreshPrices ? (
+              <Button
+                variant="outline"
+                disabled={refreshing}
+                onClick={handleRefreshPrices}
+              >
+                <RefreshCw
+                  className={cn("size-4", refreshing && "animate-spin")}
+                />
+                Refresh prices
+              </Button>
+            ) : null}
             <Button variant="outline" onClick={() => setTradingOpen(true)}>
               <CandlestickChart className="size-4" />
               Trading P&L
@@ -443,6 +491,7 @@ export function InvestmentsView({
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {typeLabel[inv.type] ?? inv.type}
                         {inv.platform ? ` · ${inv.platform}` : ""}
+                        {inv.symbol ? ` · ${inv.symbol}` : ""}
                       </p>
                     </div>
                     <DropdownMenu>
@@ -582,6 +631,14 @@ export function InvestmentsView({
                           </div>
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {inv.symbol && (
+                            <div className="font-mono text-[11px]">
+                              {inv.symbol}
+                              {inv.last_priced_at
+                                ? ` · priced ${formatDisplayDate(inv.last_priced_at.slice(0, 10))}`
+                                : ""}
+                            </div>
+                          )}
                           {latest && (
                             <div>
                               Last +{formatINR(latest.amount)} ·{" "}

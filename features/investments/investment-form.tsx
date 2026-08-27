@@ -48,6 +48,10 @@ import {
   investmentFundingKind,
   matchBrokerWalletByPlatform,
 } from "@/features/investments/funding";
+import {
+  canAutoPrice,
+  symbolFieldHint,
+} from "@/lib/market-data/update-prices";
 import type { InvestmentComputed } from "@/features/investments/summary";
 import type { InvestmentFundingAccount } from "@/features/investments/queries";
 import type { InvestmentType } from "@/types";
@@ -69,6 +73,7 @@ function defaults(
       name: investment.name,
       type: investment.type,
       platform: investment.platform,
+      symbol: investment.symbol,
       purchase_date: investment.purchase_date,
       units: investment.units,
       buy_price: investment.buy_price,
@@ -87,6 +92,7 @@ function defaults(
     name: "",
     type: "mutual_funds",
     platform: "Groww",
+    symbol: null,
     purchase_date: toDateString(new Date()),
     units: undefined,
     buy_price: undefined,
@@ -348,6 +354,29 @@ export function InvestmentForm({
                 />
               )}
             </div>
+
+            {canAutoPrice(type) ? (
+              <div className="space-y-2">
+                <Label htmlFor="inv-symbol">
+                  {type === "mutual_funds"
+                    ? "AMFI scheme code"
+                    : "Yahoo symbol"}
+                </Label>
+                <Input
+                  id="inv-symbol"
+                  placeholder={
+                    type === "mutual_funds"
+                      ? "e.g. 125497"
+                      : type === "crypto"
+                        ? "e.g. BTC-INR"
+                        : "e.g. RELIANCE.NS"
+                  }
+                  className={type === "mutual_funds" ? undefined : "uppercase"}
+                  {...form.register("symbol")}
+                />
+                <FieldHint>{symbolFieldHint(type)}</FieldHint>
+              </div>
+            ) : null}
 
             {isEdit && (
               <div className="space-y-2">

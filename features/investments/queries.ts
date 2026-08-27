@@ -44,6 +44,8 @@ function mapInvestment(
     current_price: Number(row.current_price),
     invested_amount,
     current_value,
+    symbol: (row.symbol as string | null) ?? null,
+    last_priced_at: (row.last_priced_at as string | null) ?? null,
     interest_rate:
       row.interest_rate == null ? null : Number(row.interest_rate),
     is_sip: Boolean(row.is_sip),

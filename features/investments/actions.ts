@@ -10,11 +10,16 @@ import {
   tradingPnlSchema,
 } from "@/features/investments/schemas";
 import { investmentFundingKind } from "@/features/investments/funding";
+import { updateInvestmentPrices } from "@/lib/market-data/update-prices";
 import type { InvestmentType } from "@/types";
 
 export type InvestmentActionResult = {
   error?: string;
   success?: boolean;
+  updated?: number;
+  failed?: number;
+  skipped?: number;
+  message?: string;
 };
 
 function revalidateInvestmentPaths() {
@@ -23,6 +28,16 @@ function revalidateInvestmentPaths() {
   revalidatePath("/transactions");
   revalidatePath("/");
   revalidatePath("/calendar");
+}
+
+function normalizeSymbol(
+  type: InvestmentType,
+  symbol: string | null | undefined
+): string | null {
+  const trimmed = symbol?.trim() ?? "";
+  if (!trimmed) return null;
+  if (type === "mutual_funds") return trimmed;
+  return trimmed.toUpperCase();
 }
 
 function toInvestmentRow(
@@ -35,6 +50,7 @@ function toInvestmentRow(
     name: values.name,
     type: values.type,
     platform: values.platform ?? null,
+    symbol: normalizeSymbol(values.type, values.symbol),
     purchase_date: values.purchase_date,
     units: values.units,
     buy_price: values.buy_price,
@@ -483,4 +499,27 @@ export async function deleteInvestment(
 
   revalidateInvestmentPaths();
   return { success: true };
+}
+
+/** Refresh market prices / NAVs for the signed-in user's holdings with symbols. */
+export async function refreshInvestmentPrices(): Promise<InvestmentActionResult> {
+  const { supabase, user } = await requireUser();
+
+  try {
+    const result = await updateInvestmentPrices(supabase, {
+      userId: user.id,
+    });
+    revalidateInvestmentPaths();
+    return {
+      success: true,
+      updated: result.updated,
+      failed: result.failed,
+      skipped: result.skipped,
+      message: `Updated ${result.updated} · failed ${result.failed} · skipped ${result.skipped}`,
+    };
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "Price refresh failed",
+    };
+  }
 }

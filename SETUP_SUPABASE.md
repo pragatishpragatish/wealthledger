@@ -152,6 +152,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=paste-your-key-here
 
 # Local app URL
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Optional — auto price updates (cron + /api/cron/update-investment-prices)
+# Service role is server-only; never put it in NEXT_PUBLIC_* vars.
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+CRON_SECRET=generate-a-long-random-string
 ```
 
 ### Common mistake
@@ -193,6 +198,7 @@ This creates all tables, RLS policies, storage buckets, and the signup trigger.
    7. `supabase/migrations/007_recurring_budgets.sql` (recurring budgets + amount edit history)
    8. `supabase/migrations/008_credit_card_emis.sql` (credit card EMI plans)
    9. `supabase/migrations/009_broker_wallet_accounts.sql` (stock broker wallet account type)
+   10. `supabase/migrations/010_investment_price_symbols.sql` (Yahoo/AMFI symbols + last_priced_at)
 
 4. Click **Run** for each (or paste both if preferred, one after the other).
 5. Confirm you see **Success** (no red errors).
@@ -201,6 +207,7 @@ Migration **002** adds the quarterly investment-value reminder notification type
 Migration **003** adds SIP fields on investments (monthly MF SIPs).
 Migration **008** adds `credit_card_emis` and a `converted_to_emi` flag on card transactions (pay from account + convert to EMI on the card detail page).
 Migration **009** adds the `broker_wallet` account type so you can track Groww/Zerodha/Dhan/Lemonn balances and transfer from bank accounts.
+Migration **010** adds `symbol` and `last_priced_at` on investments for auto price updates (Yahoo for stocks/ETF/crypto, MFAPI for Indian mutual funds).
 
 What this creates:
 

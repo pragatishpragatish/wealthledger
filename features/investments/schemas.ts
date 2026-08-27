@@ -25,6 +25,7 @@ export const investmentSchema = z
     name: z.string().trim().min(1, "Name is required").max(150),
     type: z.enum(investmentTypeValues),
     platform: optionalNullableString,
+    symbol: optionalNullableString,
     purchase_date: optionalDate,
     units: z.preprocess(
       (v) => (v === "" || v == null ? 0 : v),

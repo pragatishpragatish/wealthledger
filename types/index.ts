@@ -278,6 +278,8 @@ export interface Investment {
   name: string;
   type: InvestmentType;
   platform: string | null;
+  /** Yahoo ticker (stocks/ETF/crypto) or AMFI scheme code (mutual funds). */
+  symbol: string | null;
   purchase_date: string | null;
   units: number;
   buy_price: number;
@@ -294,6 +296,7 @@ export interface Investment {
   sip_day?: number | null;
   sip_frequency?: "monthly" | "weekly" | "quarterly" | null;
   sip_start_date?: string | null;
+  last_priced_at?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
