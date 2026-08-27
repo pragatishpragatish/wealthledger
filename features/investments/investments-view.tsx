@@ -45,7 +45,7 @@ import {
   summarizeInvestments,
   type InvestmentComputed,
   type InvestmentsPageData,
-} from "@/features/investments/queries";
+} from "@/features/investments/summary";
 
 const typeLabel = Object.fromEntries(
   INVESTMENT_TYPES.map((t) => [t.value, t.label])
