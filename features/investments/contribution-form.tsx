@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useMemo, useTransition } from "react";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +18,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toDateString } from "@/utils/date";
 import { formatINR } from "@/utils/currency";
 import {
@@ -25,16 +32,36 @@ import {
   type ContributionFormValues,
 } from "@/features/investments/schemas";
 import { addInvestmentContribution } from "@/features/investments/actions";
-import type { InvestmentComputed } from "@/features/investments/queries";
+import {
+  filterFundingAccounts,
+  fundingHint,
+  investmentFundingKind,
+  matchBrokerWalletByPlatform,
+} from "@/features/investments/funding";
+import type { InvestmentComputed } from "@/features/investments/summary";
+import type { InvestmentFundingAccount } from "@/features/investments/queries";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   investment: InvestmentComputed | null;
+  accounts?: InvestmentFundingAccount[];
 };
 
-export function ContributionForm({ open, onOpenChange, investment }: Props) {
+export function ContributionForm({
+  open,
+  onOpenChange,
+  investment,
+  accounts = [],
+}: Props) {
   const [pending, startTransition] = useTransition();
+  const fundingKind = investment
+    ? investmentFundingKind(investment.type)
+    : "bank";
+  const fundingAccounts = useMemo(
+    () => filterFundingAccounts(accounts, fundingKind),
+    [accounts, fundingKind]
+  );
 
   const form = useForm<
     z.input<typeof contributionSchema>,
@@ -48,20 +75,32 @@ export function ContributionForm({ open, onOpenChange, investment }: Props) {
       units: undefined,
       price: undefined,
       notes: null,
+      account_id: null,
+      debit_account: true,
     },
   });
 
+  const debitAccount = useWatch({ control: form.control, name: "debit_account" });
+
   useEffect(() => {
-    if (open) {
-      form.reset({
-        date: toDateString(new Date()),
-        amount: undefined,
-        units: undefined,
-        price: undefined,
-        notes: null,
-      });
-    }
-  }, [open, form]);
+    if (!open) return;
+    const matched =
+      fundingKind === "broker"
+        ? matchBrokerWalletByPlatform(
+            fundingAccounts,
+            investment?.platform
+          )
+        : null;
+    form.reset({
+      date: toDateString(new Date()),
+      amount: undefined,
+      units: undefined,
+      price: undefined,
+      notes: null,
+      account_id: matched?.id ?? fundingAccounts[0]?.id ?? null,
+      debit_account: true,
+    });
+  }, [open, form, fundingAccounts, fundingKind, investment?.platform]);
 
   function onSubmit(values: ContributionFormValues) {
     if (!investment) return;
@@ -99,13 +138,7 @@ export function ContributionForm({ open, onOpenChange, investment }: Props) {
                 id="contrib-date"
                 type="date"
                 {...form.register("date")}
-                aria-invalid={!!form.formState.errors.date}
               />
-              {form.formState.errors.date && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.date.message}
-                </p>
-              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="contrib-amount">Amount (₹)</Label>
@@ -114,9 +147,8 @@ export function ContributionForm({ open, onOpenChange, investment }: Props) {
                 type="number"
                 step="0.01"
                 min="0"
-                placeholder="e.g. 1000"
+                placeholder="e.g. 5000"
                 {...form.register("amount")}
-                aria-invalid={!!form.formState.errors.amount}
               />
               {form.formState.errors.amount && (
                 <p className="text-xs text-destructive">
@@ -126,33 +158,98 @@ export function ContributionForm({ open, onOpenChange, investment }: Props) {
             </div>
           </div>
 
-          <details className="rounded-xl border border-border/60 p-3">
-            <summary className="cursor-pointer text-sm font-medium">
-              Units &amp; NAV (optional)
-            </summary>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="contrib-units">Units bought</Label>
-                <Input
-                  id="contrib-units"
-                  type="number"
-                  step="any"
-                  min="0"
-                  {...form.register("units")}
-                />
+          <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium">
+                  Paid from{" "}
+                  {fundingKind === "broker" ? "broker wallet" : "bank account"}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {fundingHint(fundingKind)}
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="contrib-price">NAV / price</Label>
-                <Input
-                  id="contrib-price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  {...form.register("price")}
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  className="size-3.5 rounded border"
+                  checked={debitAccount !== false}
+                  onChange={(e) =>
+                    form.setValue("debit_account", e.target.checked)
+                  }
                 />
-              </div>
+                Deduct now
+              </label>
             </div>
-          </details>
+            {debitAccount !== false ? (
+              fundingAccounts.length === 0 ? (
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  {fundingKind === "broker"
+                    ? "No broker wallets available."
+                    : "No bank accounts available."}
+                </p>
+              ) : (
+                <Controller
+                  control={form.control}
+                  name="account_id"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ?? null}
+                      onValueChange={(v) =>
+                        field.onChange(v === "" || v == null ? null : v)
+                      }
+                      items={Object.fromEntries(
+                        fundingAccounts.map((a) => [
+                          a.id,
+                          `${a.bank_name} · ${a.name} (${formatINR(a.current_balance)})`,
+                        ])
+                      )}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {fundingAccounts.map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.bank_name} · {a.name} (
+                            {formatINR(a.current_balance)})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              )
+            ) : null}
+            {form.formState.errors.account_id && (
+              <p className="text-xs text-destructive">
+                {form.formState.errors.account_id.message}
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="contrib-units">Units (optional)</Label>
+              <Input
+                id="contrib-units"
+                type="number"
+                step="any"
+                min="0"
+                {...form.register("units")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contrib-price">Price / NAV (optional)</Label>
+              <Input
+                id="contrib-price"
+                type="number"
+                step="0.01"
+                min="0"
+                {...form.register("price")}
+              />
+            </div>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="contrib-notes">Notes</Label>
@@ -168,14 +265,13 @@ export function ContributionForm({ open, onOpenChange, investment }: Props) {
             <Button
               type="button"
               variant="outline"
-              disabled={pending}
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
             <Button type="submit" disabled={pending || !investment}>
-              {pending && <Loader2 className="size-4 animate-spin" />}
-              Add contribution
+              {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+              Add money
             </Button>
           </DialogFooter>
         </form>

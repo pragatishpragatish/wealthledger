@@ -53,6 +53,13 @@ export const investmentSchema = z
       }),
     notes: optionalNullableString,
     is_active: z.boolean().default(true),
+    /** Funding account — broker wallet for stocks/ETF, bank for MF/bonds. */
+    account_id: z
+      .union([z.string().uuid(), z.literal(""), z.null()])
+      .optional()
+      .transform((v) => (v == null || v === "" ? null : v)),
+    /** When false, only records the holding (no wallet/bank debit). */
+    debit_account: z.boolean().default(true),
   })
   .superRefine((data, ctx) => {
     const amounts = resolveInvestmentAmounts(data);
@@ -63,24 +70,61 @@ export const investmentSchema = z
         path: ["invested_amount"],
       });
     }
+    if (
+      data.debit_account !== false &&
+      amounts.invested_amount > 0 &&
+      !data.account_id
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Select the account this investment is paid from",
+        path: ["account_id"],
+      });
+    }
   });
 
 export type InvestmentFormValues = z.infer<typeof investmentSchema>;
 
-export const contributionSchema = z.object({
-  date: dateStringSchema,
+export const contributionSchema = z
+  .object({
+    date: dateStringSchema,
+    amount: positiveMoneySchema,
+    units: z.preprocess(
+      (v) => (v === "" || v == null ? 0 : v),
+      z.coerce
+        .number({ invalid_type_error: "Enter valid units" })
+        .min(0, "Units cannot be negative")
+    ),
+    price: nonNegativeMoneySchema,
+    notes: optionalNullableString,
+    account_id: z
+      .union([z.string().uuid(), z.literal(""), z.null()])
+      .optional()
+      .transform((v) => (v == null || v === "" ? null : v)),
+    debit_account: z.boolean().default(true),
+  })
+  .superRefine((data, ctx) => {
+    if (data.debit_account !== false && !data.account_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Select the account this top-up is paid from",
+        path: ["account_id"],
+      });
+    }
+  });
+
+export type ContributionFormValues = z.infer<typeof contributionSchema>;
+
+export const tradingPnlSchema = z.object({
+  account_id: z.string().uuid("Select a broker wallet"),
+  activity: z.enum(["fno", "intraday", "other"]),
+  result: z.enum(["profit", "loss"]),
   amount: positiveMoneySchema,
-  units: z.preprocess(
-    (v) => (v === "" || v == null ? 0 : v),
-    z.coerce
-      .number({ invalid_type_error: "Enter valid units" })
-      .min(0, "Units cannot be negative")
-  ),
-  price: nonNegativeMoneySchema,
+  date: dateStringSchema,
   notes: optionalNullableString,
 });
 
-export type ContributionFormValues = z.infer<typeof contributionSchema>;
+export type TradingPnlFormValues = z.infer<typeof tradingPnlSchema>;
 
 /** Derive amounts from units/prices when provided. */
 export function resolveInvestmentAmounts(

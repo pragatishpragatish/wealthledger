@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useTransition } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useEffect, useMemo, useTransition } from "react";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -42,7 +42,14 @@ import {
   createInvestment,
   updateInvestment,
 } from "@/features/investments/actions";
-import type { InvestmentComputed } from "@/features/investments/queries";
+import {
+  filterFundingAccounts,
+  fundingHint,
+  investmentFundingKind,
+  matchBrokerWalletByPlatform,
+} from "@/features/investments/funding";
+import type { InvestmentComputed } from "@/features/investments/summary";
+import type { InvestmentFundingAccount } from "@/features/investments/queries";
 import type { InvestmentType } from "@/types";
 
 type EntryPresetId = (typeof INVESTMENT_ENTRY_PRESETS)[number]["id"];
@@ -51,6 +58,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   investment?: InvestmentComputed | null;
+  accounts?: InvestmentFundingAccount[];
 };
 
 function defaults(
@@ -71,6 +79,8 @@ function defaults(
       interest_rate: investment.interest_rate,
       notes: investment.notes,
       is_active: investment.is_active,
+      account_id: null,
+      debit_account: false,
     };
   }
   return {
@@ -87,6 +97,8 @@ function defaults(
     interest_rate: null,
     notes: null,
     is_active: true,
+    account_id: null,
+    debit_account: true,
   };
 }
 
@@ -94,7 +106,12 @@ function FieldHint({ children }: { children: React.ReactNode }) {
   return <p className="text-[11px] text-muted-foreground">{children}</p>;
 }
 
-export function InvestmentForm({ open, onOpenChange, investment }: Props) {
+export function InvestmentForm({
+  open,
+  onOpenChange,
+  investment,
+  accounts = [],
+}: Props) {
   const isEdit = Boolean(investment);
   const [pending, startTransition] = useTransition();
 
@@ -114,6 +131,13 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
   const invested = Number(form.watch("invested_amount") ?? 0);
   const currentValue = Number(form.watch("current_value") ?? 0);
   const platform = form.watch("platform");
+  const debitAccount = useWatch({ control: form.control, name: "debit_account" });
+
+  const fundingKind = investmentFundingKind(type);
+  const fundingAccounts = useMemo(
+    () => filterFundingAccounts(accounts, fundingKind),
+    [accounts, fundingKind]
+  );
 
   const preview = resolveInvestmentAmounts({
     units,
@@ -142,6 +166,27 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
   useEffect(() => {
     if (open) form.reset(defaults(investment));
   }, [open, investment, form]);
+
+  useEffect(() => {
+    if (isEdit || !open) return;
+    // Prefer matching broker wallet when platform changes for stocks/ETF.
+    if (fundingKind === "broker") {
+      const matched = matchBrokerWalletByPlatform(fundingAccounts, platform);
+      if (matched) {
+        form.setValue("account_id", matched.id);
+        return;
+      }
+    }
+    const current = form.getValues("account_id");
+    if (
+      current &&
+      !fundingAccounts.some((a) => a.id === current)
+    ) {
+      form.setValue("account_id", fundingAccounts[0]?.id ?? null);
+    } else if (!current && fundingAccounts[0]) {
+      form.setValue("account_id", fundingAccounts[0].id);
+    }
+  }, [fundingKind, fundingAccounts, platform, isEdit, open, form]);
 
   useEffect(() => {
     if (units > 0 && buyPrice > 0) {
@@ -176,7 +221,11 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
     startTransition(async () => {
       const result =
         isEdit && investment
-          ? await updateInvestment(investment.id, values)
+          ? await updateInvestment(investment.id, {
+              ...values,
+              debit_account: false,
+              account_id: null,
+            })
           : await createInvestment(values);
 
       if (result.error) {
@@ -367,6 +416,93 @@ export function InvestmentForm({ open, onOpenChange, investment }: Props) {
               <FieldHint>Leave blank to match invested for now</FieldHint>
             </div>
           </div>
+
+          {!isEdit ? (
+            <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">
+                    Paid from{" "}
+                    {fundingKind === "broker"
+                      ? "broker wallet"
+                      : "bank account"}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {fundingHint(fundingKind)}
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    className="size-3.5 rounded border"
+                    checked={debitAccount !== false}
+                    onChange={(e) =>
+                      form.setValue("debit_account", e.target.checked)
+                    }
+                  />
+                  Deduct now
+                </label>
+              </div>
+
+              {debitAccount !== false ? (
+                fundingAccounts.length === 0 ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {fundingKind === "broker"
+                      ? "No broker wallets yet — add one under Accounts (or use Add all brokers)."
+                      : "No bank accounts yet — add a savings/salary account first."}
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <Controller
+                      control={form.control}
+                      name="account_id"
+                      render={({ field }) => (
+                        <Select
+                          value={field.value ?? null}
+                          onValueChange={(v) =>
+                            field.onChange(v === "" || v == null ? null : v)
+                          }
+                          items={Object.fromEntries(
+                            fundingAccounts.map((a) => [
+                              a.id,
+                              `${a.bank_name} · ${a.name} (${formatINR(a.current_balance)})`,
+                            ])
+                          )}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue
+                              placeholder={
+                                fundingKind === "broker"
+                                  ? "Select broker wallet"
+                                  : "Select bank account"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {fundingAccounts.map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                {a.bank_name} · {a.name} (
+                                {formatINR(a.current_balance)})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {form.formState.errors.account_id && (
+                      <p className="text-xs text-destructive">
+                        {form.formState.errors.account_id.message}
+                      </p>
+                    )}
+                  </div>
+                )
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  Holding will be recorded without changing any account balance.
+                </p>
+              )}
+            </div>
+          ) : null}
 
           {showUnits && (
             <details className="rounded-xl border border-border/60 p-3">

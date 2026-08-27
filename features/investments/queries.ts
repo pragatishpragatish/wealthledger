@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import type { Investment } from "@/types";
+import type { Account, Investment } from "@/types";
 import {
   summarizeInvestments,
   type InvestmentComputed,
@@ -15,6 +15,15 @@ export type {
   InvestmentsSummary,
 } from "@/features/investments/summary";
 export { summarizeInvestments } from "@/features/investments/summary";
+
+export type InvestmentFundingAccount = Pick<
+  Account,
+  "id" | "name" | "bank_name" | "current_balance" | "account_type"
+>;
+
+export type InvestmentsPageDataWithAccounts = InvestmentsPageData & {
+  accounts: InvestmentFundingAccount[];
+};
 
 function mapInvestment(
   row: Record<string, unknown>,
@@ -109,10 +118,30 @@ export async function getInvestments(opts?: {
   );
 }
 
-export async function getInvestmentsPageData(): Promise<InvestmentsPageData> {
-  const investments = await getInvestments();
+export async function getInvestmentsPageData(): Promise<InvestmentsPageDataWithAccounts> {
+  const { supabase, user } = await requireUser();
+  const [investments, accountsRes] = await Promise.all([
+    getInvestments(),
+    supabase
+      .from("accounts")
+      .select("id, name, bank_name, current_balance, account_type")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .order("bank_name")
+      .order("name"),
+  ]);
+
+  if (accountsRes.error) throw new Error(accountsRes.error.message);
+
   return {
     investments,
     summary: summarizeInvestments(investments),
+    accounts: (accountsRes.data ?? []).map((a) => ({
+      id: a.id as string,
+      name: a.name as string,
+      bank_name: a.bank_name as string,
+      current_balance: Number(a.current_balance),
+      account_type: a.account_type as Account["account_type"],
+    })),
   };
 }

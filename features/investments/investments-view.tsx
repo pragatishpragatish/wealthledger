@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import {
   ArrowUpDown,
+  CandlestickChart,
   History,
   LineChart,
   MoreHorizontal,
@@ -44,8 +45,9 @@ import { ContributionHistoryDialog } from "@/features/investments/contribution-h
 import {
   summarizeInvestments,
   type InvestmentComputed,
-  type InvestmentsPageData,
 } from "@/features/investments/summary";
+import type { InvestmentsPageDataWithAccounts } from "@/features/investments/queries";
+import { TradingPnlDialog } from "@/features/investments/trading-pnl-dialog";
 
 const typeLabel = Object.fromEntries(
   INVESTMENT_TYPES.map((t) => [t.value, t.label])
@@ -106,13 +108,18 @@ function sortInvestments(
   return next;
 }
 
-export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
-  const { investments: allInvestments } = data;
+export function InvestmentsView({
+  data,
+}: {
+  data: InvestmentsPageDataWithAccounts;
+}) {
+  const { investments: allInvestments, accounts } = data;
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [brokerFilter, setBrokerFilter] = useState<string>("all");
   const [sort, setSort] = useState<SortId>("value-desc");
 
   const [formOpen, setFormOpen] = useState(false);
+  const [tradingOpen, setTradingOpen] = useState(false);
   const [editing, setEditing] = useState<InvestmentComputed | null>(null);
   const [contributing, setContributing] = useState<InvestmentComputed | null>(
     null
@@ -197,10 +204,16 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
         title="Investments"
         description="Track holdings and log each top-up with its date — same fund, many entries."
         action={
-          <Button onClick={openCreate}>
-            <Plus className="size-4" />
-            Add investment
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setTradingOpen(true)}>
+              <CandlestickChart className="size-4" />
+              Trading P&L
+            </Button>
+            <Button onClick={openCreate}>
+              <Plus className="size-4" />
+              Add investment
+            </Button>
+          </div>
         }
       />
 
@@ -641,6 +654,7 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
         open={formOpen}
         onOpenChange={setFormOpen}
         investment={editing}
+        accounts={accounts}
       />
 
       <ContributionForm
@@ -649,6 +663,13 @@ export function InvestmentsView({ data }: { data: InvestmentsPageData }) {
           if (!open) setContributing(null);
         }}
         investment={contributing}
+        accounts={accounts}
+      />
+
+      <TradingPnlDialog
+        open={tradingOpen}
+        onOpenChange={setTradingOpen}
+        accounts={accounts}
       />
 
       <ContributionHistoryDialog
