@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import {
   Building2,
   Landmark,
+  LineChart,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -35,7 +36,10 @@ import { formatINR, maskAccountNumber } from "@/utils/currency";
 import { formatDisplayDate } from "@/utils/date";
 import type { Account } from "@/types";
 import type { AccountsSummary } from "@/features/accounts/queries";
-import { deleteAccount } from "@/features/accounts/actions";
+import {
+  createMissingBrokerWallets,
+  deleteAccount,
+} from "@/features/accounts/actions";
 import { AccountForm } from "@/features/accounts/account-form";
 
 const typeLabel = Object.fromEntries(
@@ -50,22 +54,35 @@ export function AccountsView({
   summary: AccountsSummary;
 }) {
   const [formOpen, setFormOpen] = useState(false);
+  const [defaultBroker, setDefaultBroker] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [deleting, setDeleting] = useState<Account | null>(null);
   const [pending, startTransition] = useTransition();
+  const [brokerPending, startBrokerTransition] = useTransition();
 
   const maxBankBalance = useMemo(
     () => Math.max(...summary.byBank.map((b) => b.balance), 1),
     [summary.byBank]
   );
 
-  function openCreate() {
+  const brokerAccounts = useMemo(
+    () => accounts.filter((a) => a.account_type === "broker_wallet"),
+    [accounts]
+  );
+  const otherAccounts = useMemo(
+    () => accounts.filter((a) => a.account_type !== "broker_wallet"),
+    [accounts]
+  );
+
+  function openCreate(broker = false) {
     setEditing(null);
+    setDefaultBroker(broker);
     setFormOpen(true);
   }
 
   function openEdit(account: Account) {
     setEditing(account);
+    setDefaultBroker(account.account_type === "broker_wallet");
     setFormOpen(true);
   }
 
@@ -82,64 +99,83 @@ export function AccountsView({
     });
   }
 
+  function handleAddAllBrokers() {
+    startBrokerTransition(async () => {
+      const result = await createMissingBrokerWallets();
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+      const n = result.created ?? 0;
+      toast.success(
+        n === 0
+          ? "All broker wallets already added"
+          : `Added ${n} broker wallet${n === 1 ? "" : "s"}`
+      );
+    });
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Bank Accounts"
-        description="Manage savings, salary, current, cash and UPI wallets."
+        title="Accounts"
+        description="Banks, cash/UPI wallets, and stock broker wallet balances. Transfer between them anytime."
         action={
-          <Button onClick={openCreate}>
-            <Plus className="size-4" />
-            Add account
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={handleAddAllBrokers}
+              disabled={brokerPending}
+            >
+              <LineChart className="size-4" />
+              {brokerPending ? "Adding…" : "Add all brokers"}
+            </Button>
+            <Button variant="outline" onClick={() => openCreate(true)}>
+              <Plus className="size-4" />
+              Broker wallet
+            </Button>
+            <Button onClick={() => openCreate(false)}>
+              <Plus className="size-4" />
+              Add account
+            </Button>
+          </div>
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div
-          className="rounded-2xl border border-border/60 bg-gradient-to-br from-teal-500/8 to-card p-5 shadow-sm"
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Total cash
-              </p>
-              <p className="mt-2 font-heading text-2xl font-semibold tracking-tight tabular-nums">
-                {formatINR(summary.totalCash)}
-              </p>
-            </div>
-            <span className="flex size-10 items-center justify-center rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-400">
-              <Wallet className="size-5" />
-            </span>
-          </div>
-        </div>
-
-        <div
-          className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card p-5 shadow-sm"
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Active accounts
-              </p>
-              <p className="mt-2 font-heading text-2xl font-semibold tracking-tight tabular-nums">
-                {summary.accountCount}
-              </p>
-            </div>
-            <span className="flex size-10 items-center justify-center rounded-xl bg-muted text-foreground">
-              <Landmark className="size-5" />
-            </span>
-          </div>
-        </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryTile
+          title="Total liquid"
+          value={formatINR(summary.totalCash)}
+          icon={Wallet}
+          accent="teal"
+        />
+        <SummaryTile
+          title="Banks & wallets"
+          value={formatINR(summary.bankAndWalletTotal)}
+          icon={Landmark}
+          accent="default"
+        />
+        <SummaryTile
+          title="Broker wallets"
+          value={formatINR(summary.brokerWalletTotal)}
+          icon={LineChart}
+          accent="amber"
+        />
+        <SummaryTile
+          title="Active accounts"
+          value={String(summary.accountCount)}
+          icon={Building2}
+          accent="default"
+        />
       </div>
 
       {summary.byBank.length > 0 && (
-        <div
-          className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm"
-        >
+        <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Building2 className="size-4 text-teal-700 dark:text-teal-400" />
-            <h2 className="font-heading text-sm font-semibold">Balance by bank</h2>
+            <h2 className="font-heading text-sm font-semibold">
+              Balance by institution
+            </h2>
           </div>
           <ul className="space-y-3">
             {summary.byBank.map((row) => (
@@ -168,94 +204,74 @@ export function AccountsView({
         <EmptyState
           icon={Wallet}
           title="No accounts yet"
-          description="Add your first bank account or wallet to start tracking balances."
+          description="Add a bank account or stock broker wallet, then transfer money between them."
           action={
-            <Button onClick={openCreate}>
-              <Plus className="size-4" />
-              Add account
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button variant="outline" onClick={handleAddAllBrokers}>
+                Add all brokers
+              </Button>
+              <Button onClick={() => openCreate(false)}>
+                <Plus className="size-4" />
+                Add account
+              </Button>
+            </div>
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
-          <div className="overflow-x-auto overscroll-x-contain">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Account</TableHead>
-                <TableHead className="hidden md:table-cell">Bank</TableHead>
-                <TableHead className="hidden sm:table-cell">Type</TableHead>
-                <TableHead className="hidden lg:table-cell">Number</TableHead>
-                <TableHead className="hidden xl:table-cell">Opened</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead className="w-12" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {accounts.map((account) => (
-                <TableRow key={account.id}>
-                  <TableCell>
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{account.name}</p>
-                      <p className="truncate text-xs text-muted-foreground md:hidden">
-                        {account.bank_name}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {account.bank_name}
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    <Badge variant="secondary">
-                      {typeLabel[account.account_type] ?? account.account_type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="hidden font-mono text-xs lg:table-cell">
-                    {maskAccountNumber(account.account_number)}
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground xl:table-cell">
-                    {formatDisplayDate(account.opening_date)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {formatINR(account.current_balance, { precise: true })}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        render={
-                          <Button variant="ghost" size="icon-sm" />
-                        }
-                      >
-                        <MoreHorizontal className="size-4" />
-                        <span className="sr-only">Actions</span>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEdit(account)}>
-                          <Pencil className="size-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDeleting(account)}
-                        >
-                          <Trash2 className="size-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="space-y-6">
+          {otherAccounts.length > 0 ? (
+            <AccountTable
+              title="Banks & wallets"
+              accounts={otherAccounts}
+              onEdit={openEdit}
+              onDelete={setDeleting}
+            />
+          ) : null}
+
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-heading text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+                Stock broker wallets
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAddAllBrokers}
+                  disabled={brokerPending}
+                >
+                  Add all brokers
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => openCreate(true)}>
+                  <Plus className="size-4" />
+                  Add broker
+                </Button>
+              </div>
+            </div>
+            {brokerAccounts.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border/70 bg-card/50 px-4 py-8 text-center text-sm text-muted-foreground">
+                No broker wallets yet. Add Groww, Zerodha, Dhan, Lemonn and more —
+                then transfer from your bank to fund them.
+              </div>
+            ) : (
+              <AccountTable
+                accounts={brokerAccounts}
+                onEdit={openEdit}
+                onDelete={setDeleting}
+              />
+            )}
           </div>
         </div>
       )}
 
       <AccountForm
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={(open) => {
+          setFormOpen(open);
+          if (!open) setDefaultBroker(false);
+        }}
         account={editing}
+        defaultBroker={defaultBroker}
       />
 
       <ConfirmDeleteDialog
@@ -273,6 +289,148 @@ export function AccountsView({
         pending={pending}
         onConfirm={handleDelete}
       />
+    </div>
+  );
+}
+
+function AccountTable({
+  title,
+  accounts,
+  onEdit,
+  onDelete,
+}: {
+  title?: string;
+  accounts: Account[];
+  onEdit: (account: Account) => void;
+  onDelete: (account: Account) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
+      {title ? (
+        <div className="border-b border-border/50 px-4 py-3">
+          <h2 className="font-heading text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+            {title}
+          </h2>
+        </div>
+      ) : null}
+      <div className="overflow-x-auto overscroll-x-contain">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Account</TableHead>
+              <TableHead className="hidden md:table-cell">
+                Bank / Broker
+              </TableHead>
+              <TableHead className="hidden sm:table-cell">Type</TableHead>
+              <TableHead className="hidden lg:table-cell">Number</TableHead>
+              <TableHead className="hidden xl:table-cell">Opened</TableHead>
+              <TableHead className="text-right">Balance</TableHead>
+              <TableHead className="w-12" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {accounts.map((account) => (
+              <TableRow key={account.id}>
+                <TableCell>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{account.name}</p>
+                    <p className="truncate text-xs text-muted-foreground md:hidden">
+                      {account.bank_name}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell className="hidden md:table-cell">
+                  {account.bank_name}
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">
+                  <Badge variant="secondary">
+                    {typeLabel[account.account_type] ?? account.account_type}
+                  </Badge>
+                </TableCell>
+                <TableCell className="hidden font-mono text-xs lg:table-cell">
+                  {account.account_type === "broker_wallet"
+                    ? "—"
+                    : maskAccountNumber(account.account_number)}
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground xl:table-cell">
+                  {formatDisplayDate(account.opening_date)}
+                </TableCell>
+                <TableCell className="text-right font-medium tabular-nums">
+                  {formatINR(account.current_balance, { precise: true })}
+                </TableCell>
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={<Button variant="ghost" size="icon-sm" />}
+                    >
+                      <MoreHorizontal className="size-4" />
+                      <span className="sr-only">Actions</span>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit(account)}>
+                        <Pencil className="size-4" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => onDelete(account)}
+                      >
+                        <Trash2 className="size-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
+function SummaryTile({
+  title,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  title: string;
+  value: string;
+  icon: typeof Wallet;
+  accent: "default" | "teal" | "amber";
+}) {
+  const accents = {
+    default: "from-card to-card",
+    teal: "from-teal-500/8 to-card",
+    amber: "from-amber-500/8 to-card",
+  };
+  const icons = {
+    default: "bg-muted text-foreground",
+    teal: "bg-teal-500/10 text-teal-700 dark:text-teal-400",
+    amber: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border border-border/60 bg-gradient-to-br p-5 shadow-sm ${accents[accent]}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            {title}
+          </p>
+          <p className="mt-2 font-heading text-2xl font-semibold tracking-tight tabular-nums">
+            {value}
+          </p>
+        </div>
+        <span
+          className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${icons[accent]}`}
+        >
+          <Icon className="size-5" />
+        </span>
+      </div>
     </div>
   );
 }

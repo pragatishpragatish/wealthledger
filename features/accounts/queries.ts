@@ -3,6 +3,11 @@ import type { Account } from "@/types";
 
 export type AccountsSummary = {
   totalCash: number;
+  /** Bank / cash / UPI only (excludes broker wallets). */
+  bankAndWalletTotal: number;
+  /** Idle cash sitting in stock broker wallets. */
+  brokerWalletTotal: number;
+  brokerWalletCount: number;
   accountCount: number;
   byBank: { bank: string; balance: number }[];
 };
@@ -36,6 +41,11 @@ export async function getAccounts(opts?: {
 export async function getAccountsSummary(): Promise<AccountsSummary> {
   const accounts = await getAccounts();
   const totalCash = accounts.reduce((s, a) => s + a.current_balance, 0);
+  const brokers = accounts.filter((a) => a.account_type === "broker_wallet");
+  const bankAndWalletTotal = accounts
+    .filter((a) => a.account_type !== "broker_wallet")
+    .reduce((s, a) => s + a.current_balance, 0);
+  const brokerWalletTotal = brokers.reduce((s, a) => s + a.current_balance, 0);
 
   const bankMap = new Map<string, number>();
   for (const account of accounts) {
@@ -51,6 +61,9 @@ export async function getAccountsSummary(): Promise<AccountsSummary> {
 
   return {
     totalCash,
+    bankAndWalletTotal,
+    brokerWalletTotal,
+    brokerWalletCount: brokers.length,
     accountCount: accounts.length,
     byBank,
   };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useTransition } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,12 +25,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { z } from "zod";
-import { ACCOUNT_TYPES } from "@/lib/constants";
+import { ACCOUNT_TYPES, INVESTMENT_PLATFORMS } from "@/lib/constants";
 import { toDateString } from "@/utils/date";
 import type { Account } from "@/types";
-import {
-  accountSchema,
-} from "@/features/accounts/schemas";
+import { accountSchema } from "@/features/accounts/schemas";
 import {
   createAccount,
   updateAccount,
@@ -40,9 +38,14 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   account?: Account | null;
+  /** Prefill as broker wallet when opening from “add broker”. */
+  defaultBroker?: boolean;
 };
 
-function defaults(account?: Account | null): z.input<typeof accountSchema> {
+function defaults(
+  account?: Account | null,
+  defaultBroker?: boolean
+): z.input<typeof accountSchema> {
   if (account) {
     return {
       name: account.name,
@@ -58,10 +61,10 @@ function defaults(account?: Account | null): z.input<typeof accountSchema> {
   }
   return {
     name: "",
-    bank_name: "",
+    bank_name: defaultBroker ? "Groww" : "",
     account_number: null,
     ifsc: null,
-    account_type: "savings",
+    account_type: defaultBroker ? "broker_wallet" : "savings",
     opening_balance: undefined,
     current_balance: undefined,
     opening_date: toDateString(new Date()),
@@ -69,26 +72,44 @@ function defaults(account?: Account | null): z.input<typeof accountSchema> {
   };
 }
 
-export function AccountForm({ open, onOpenChange, account }: Props) {
+export function AccountForm({
+  open,
+  onOpenChange,
+  account,
+  defaultBroker = false,
+}: Props) {
   const isEdit = Boolean(account);
   const [pending, startTransition] = useTransition();
 
   const form = useForm<z.input<typeof accountSchema>>({
     resolver: zodResolver(accountSchema),
-    defaultValues: defaults(account),
+    defaultValues: defaults(account, defaultBroker),
   });
+
+  const accountType = useWatch({ control: form.control, name: "account_type" });
+  const isBroker = accountType === "broker_wallet";
 
   useEffect(() => {
     if (open) {
-      form.reset(defaults(account));
+      form.reset(defaults(account, defaultBroker));
     }
-  }, [open, account, form]);
+  }, [open, account, defaultBroker, form]);
+
+  useEffect(() => {
+    if (!isBroker || isEdit) return;
+    const broker = form.getValues("bank_name");
+    const name = form.getValues("name");
+    if (!name.trim() && broker) {
+      form.setValue("name", `${broker} Wallet`);
+    }
+  }, [isBroker, isEdit, form]);
 
   function onSubmit(values: z.input<typeof accountSchema>) {
     startTransition(async () => {
-      const result = isEdit && account
-        ? await updateAccount(account.id, values)
-        : await createAccount(values);
+      const result =
+        isEdit && account
+          ? await updateAccount(account.id, values)
+          : await createAccount(values);
 
       if (result.error) {
         toast.error(result.error);
@@ -104,50 +125,27 @@ export function AccountForm({ open, onOpenChange, account }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg" showCloseButton>
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit account" : "Add account"}</DialogTitle>
+          <DialogTitle>
+            {isEdit
+              ? "Edit account"
+              : isBroker
+                ? "Add broker wallet"
+                : "Add account"}
+          </DialogTitle>
           <DialogDescription>
             {isEdit
-              ? "Update bank account details. Balance changes via transactions."
-              : "Add a savings, salary, current, cash or UPI wallet."}
+              ? "Update account details. Balance changes via transactions and transfers."
+              : isBroker
+                ? "Track idle cash in a stock broker wallet. Transfer from bank accounts anytime."
+                : "Add a bank account, cash/UPI wallet, or stock broker wallet."}
           </DialogDescription>
         </DialogHeader>
 
         <form
           onSubmit={form.handleSubmit(onSubmit)}
           className="grid max-h-[70vh] gap-4 overflow-y-auto py-1"
-         autoComplete="off"
-         >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="name">Account name</Label>
-              <Input
-                id="name"
-                placeholder="e.g. Primary Savings"
-                {...form.register("name")}
-                aria-invalid={!!form.formState.errors.name}
-              />
-              {form.formState.errors.name && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.name.message}
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="bank_name">Bank / Wallet</Label>
-              <Input
-                id="bank_name"
-                placeholder="e.g. HDFC Bank"
-                {...form.register("bank_name")}
-                aria-invalid={!!form.formState.errors.bank_name}
-              />
-              {form.formState.errors.bank_name && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.bank_name.message}
-                </p>
-              )}
-            </div>
-          </div>
-
+          autoComplete="off"
+        >
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Account type</Label>
@@ -158,7 +156,27 @@ export function AccountForm({ open, onOpenChange, account }: Props) {
                   <Select
                     value={field.value}
                     onValueChange={(v) => {
-                      if (v != null) field.onChange(v);
+                      if (v == null) return;
+                      field.onChange(v);
+                      if (v === "broker_wallet") {
+                        const broker =
+                          form.getValues("bank_name") || "Groww";
+                        if (
+                          !INVESTMENT_PLATFORMS.includes(
+                            broker as (typeof INVESTMENT_PLATFORMS)[number]
+                          )
+                        ) {
+                          form.setValue("bank_name", "Groww");
+                        }
+                        const n = form.getValues("name");
+                        if (!n.trim()) {
+                          form.setValue(
+                            "name",
+                            `${form.getValues("bank_name") || "Groww"} Wallet`
+                          );
+                        }
+                        form.setValue("ifsc", null);
+                      }
                     }}
                     items={Object.fromEntries(
                       ACCOUNT_TYPES.map((t) => [t.value, t.label])
@@ -196,40 +214,119 @@ export function AccountForm({ open, onOpenChange, account }: Props) {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="account_number">Account number</Label>
+              <Label htmlFor="name">Account name</Label>
               <Input
-                id="account_number"
-                placeholder="Optional"
-                {...form.register("account_number")}
+                id="name"
+                placeholder={
+                  isBroker ? "e.g. Dhan Wallet" : "e.g. Primary Savings"
+                }
+                {...form.register("name")}
+                aria-invalid={!!form.formState.errors.name}
               />
+              {form.formState.errors.name && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.name.message}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ifsc">IFSC</Label>
-              <Input
-                id="ifsc"
-                placeholder="e.g. HDFC0001234"
-                className="uppercase"
-                {...form.register("ifsc")}
-                aria-invalid={!!form.formState.errors.ifsc}
-              />
-              {form.formState.errors.ifsc && (
+              <Label htmlFor="bank_name">
+                {isBroker ? "Broker" : "Bank / Wallet"}
+              </Label>
+              {isBroker ? (
+                <Controller
+                  control={form.control}
+                  name="bank_name"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(v) => {
+                        if (v == null) return;
+                        field.onChange(v);
+                        const currentName = form.getValues("name");
+                        if (
+                          !currentName.trim() ||
+                          /wallet$/i.test(currentName)
+                        ) {
+                          form.setValue("name", `${v} Wallet`);
+                        }
+                      }}
+                      items={Object.fromEntries(
+                        INVESTMENT_PLATFORMS.map((p) => [p, p])
+                      )}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select broker" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INVESTMENT_PLATFORMS.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {p}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              ) : (
+                <Input
+                  id="bank_name"
+                  placeholder="e.g. HDFC Bank"
+                  {...form.register("bank_name")}
+                  aria-invalid={!!form.formState.errors.bank_name}
+                />
+              )}
+              {form.formState.errors.bank_name && (
                 <p className="text-xs text-destructive">
-                  {form.formState.errors.ifsc.message}
+                  {form.formState.errors.bank_name.message}
                 </p>
               )}
             </div>
           </div>
 
+          {!isBroker ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="account_number">Account number</Label>
+                <Input
+                  id="account_number"
+                  placeholder="Optional"
+                  {...form.register("account_number")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ifsc">IFSC</Label>
+                <Input
+                  id="ifsc"
+                  placeholder="e.g. HDFC0001234"
+                  className="uppercase"
+                  {...form.register("ifsc")}
+                  aria-invalid={!!form.formState.errors.ifsc}
+                />
+                {form.formState.errors.ifsc && (
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.ifsc.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : null}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="opening_balance">
-                {isEdit ? "Opening balance" : "Opening balance (₹)"}
+                {isEdit
+                  ? "Opening balance"
+                  : isBroker
+                    ? "Wallet balance (₹)"
+                    : "Opening balance (₹)"}
               </Label>
               <Input
                 id="opening_balance"
                 type="number"
                 step="0.01"
                 min="0"
+                placeholder={isBroker ? "e.g. 25000" : undefined}
                 {...form.register("opening_balance")}
                 aria-invalid={!!form.formState.errors.opening_balance}
               />
@@ -240,7 +337,9 @@ export function AccountForm({ open, onOpenChange, account }: Props) {
               )}
               {!isEdit && (
                 <p className="text-xs text-muted-foreground">
-                  Current balance starts equal to opening balance.
+                  {isBroker
+                    ? "Cash currently sitting in this broker wallet. Move money via Transfers."
+                    : "Current balance starts equal to opening balance."}
                 </p>
               )}
             </div>
@@ -253,7 +352,7 @@ export function AccountForm({ open, onOpenChange, account }: Props) {
                   readOnly
                 />
                 <p className="text-xs text-muted-foreground">
-                  Updated automatically by transactions.
+                  Updated by transfers and transactions.
                 </p>
               </div>
             )}

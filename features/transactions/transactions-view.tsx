@@ -67,7 +67,7 @@ type TransactionsPeriodMode = "month" | "range";
 
 type AccountOption = Pick<
   Account,
-  "id" | "name" | "bank_name" | "current_balance"
+  "id" | "name" | "bank_name" | "current_balance" | "account_type"
 >;
 type CategoryOption = Pick<Category, "id" | "name" | "kind" | "color">;
 

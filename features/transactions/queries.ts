@@ -180,7 +180,10 @@ export async function getTransactions(
 }
 
 export async function getTransactionFiltersData(): Promise<{
-  accounts: Pick<Account, "id" | "name" | "bank_name" | "current_balance">[];
+  accounts: Pick<
+    Account,
+    "id" | "name" | "bank_name" | "current_balance" | "account_type"
+  >[];
   categories: Pick<Category, "id" | "name" | "kind" | "color">[];
 }> {
   const { supabase, user } = await requireUser();
@@ -188,7 +191,7 @@ export async function getTransactionFiltersData(): Promise<{
   const [accountsRes, categoriesRes] = await Promise.all([
     supabase
       .from("accounts")
-      .select("id, name, bank_name, current_balance")
+      .select("id, name, bank_name, current_balance, account_type")
       .eq("user_id", user.id)
       .eq("is_active", true)
       .order("name"),
@@ -206,6 +209,7 @@ export async function getTransactionFiltersData(): Promise<{
   return {
     accounts: (accountsRes.data ?? []).map((a) => ({
       ...a,
+      account_type: a.account_type as Account["account_type"],
       current_balance: Number(a.current_balance),
     })),
     categories: categoriesRes.data ?? [],

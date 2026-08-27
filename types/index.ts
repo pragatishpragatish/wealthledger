@@ -3,7 +3,8 @@ export type AccountType =
   | "salary"
   | "current"
   | "cash_wallet"
-  | "upi_wallet";
+  | "upi_wallet"
+  | "broker_wallet";
 
 export type TransactionType = "income" | "expense" | "transfer" | "adjustment";
 

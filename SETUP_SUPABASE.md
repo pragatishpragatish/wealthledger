@@ -192,6 +192,7 @@ This creates all tables, RLS policies, storage buckets, and the signup trigger.
    6. `supabase/migrations/006_extra_categories.sql` (Subscriptions, Gym, Trading/Stock returns)
    7. `supabase/migrations/007_recurring_budgets.sql` (recurring budgets + amount edit history)
    8. `supabase/migrations/008_credit_card_emis.sql` (credit card EMI plans)
+   9. `supabase/migrations/009_broker_wallet_accounts.sql` (stock broker wallet account type)
 
 4. Click **Run** for each (or paste both if preferred, one after the other).
 5. Confirm you see **Success** (no red errors).
@@ -199,6 +200,7 @@ This creates all tables, RLS policies, storage buckets, and the signup trigger.
 Migration **002** adds the quarterly investment-value reminder notification type and settings toggle.  
 Migration **003** adds SIP fields on investments (monthly MF SIPs).
 Migration **008** adds `credit_card_emis` and a `converted_to_emi` flag on card transactions (pay from account + convert to EMI on the card detail page).
+Migration **009** adds the `broker_wallet` account type so you can track Groww/Zerodha/Dhan/Lemonn balances and transfer from bank accounts.
 
 What this creates:
 

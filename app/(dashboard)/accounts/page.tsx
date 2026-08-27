@@ -4,7 +4,7 @@ import {
   getAccountsSummary,
 } from "@/features/accounts/queries";
 
-export const metadata = { title: "Bank Accounts · WealthLedger" };
+export const metadata = { title: "Accounts · WealthLedger" };
 
 export default async function AccountsPage() {
   const [accounts, summary] = await Promise.all([

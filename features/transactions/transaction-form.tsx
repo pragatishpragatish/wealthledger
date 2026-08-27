@@ -39,7 +39,7 @@ import {
 
 type AccountOption = Pick<
   Account,
-  "id" | "name" | "bank_name" | "current_balance"
+  "id" | "name" | "bank_name" | "current_balance" | "account_type"
 >;
 type CategoryOption = Pick<Category, "id" | "name" | "kind" | "color">;
 
@@ -57,6 +57,12 @@ const TYPE_OPTIONS = [
   { value: "transfer", label: "Transfer" },
   { value: "adjustment", label: "Adjustment" },
 ] as const;
+
+function accountLabel(a: AccountOption) {
+  const broker =
+    a.account_type === "broker_wallet" ? " · Broker" : "";
+  return `${a.name} · ${a.bank_name}${broker}`;
+}
 
 function defaults(tx?: Transaction | null): z.input<typeof transactionSchema> {
   if (tx) {
@@ -149,7 +155,7 @@ export function TransactionForm({
             {isEdit ? "Edit transaction" : "Add transaction"}
           </DialogTitle>
           <DialogDescription>
-            Record income, expense, transfer or balance adjustment.
+            Record income, expense, bank↔broker transfer or balance adjustment.
           </DialogDescription>
         </DialogHeader>
 
@@ -247,7 +253,7 @@ export function TransactionForm({
                     }
                     items={accounts.map((a) => ({
                       value: a.id,
-                      label: `${a.name} · ${a.bank_name}`,
+                      label: accountLabel(a),
                     }))}
                   >
                     <SelectTrigger className="w-full">
@@ -256,7 +262,7 @@ export function TransactionForm({
                     <SelectContent>
                       {accounts.map((a) => (
                         <SelectItem key={a.id} value={a.id}>
-                          {a.name} · {a.bank_name}
+                          {accountLabel(a)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -284,7 +290,7 @@ export function TransactionForm({
                       }
                       items={accounts.map((a) => ({
                         value: a.id,
-                        label: `${a.name} · ${a.bank_name}`,
+                        label: accountLabel(a),
                       }))}
                     >
                       <SelectTrigger className="w-full">
@@ -293,7 +299,7 @@ export function TransactionForm({
                       <SelectContent>
                         {accounts.map((a) => (
                           <SelectItem key={a.id} value={a.id}>
-                            {a.name} · {a.bank_name}
+                            {accountLabel(a)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -305,6 +311,10 @@ export function TransactionForm({
                     {form.formState.errors.to_account_id.message}
                   </p>
                 )}
+                <p className="text-xs text-muted-foreground">
+                  Move money between bank accounts and broker wallets (e.g. HDFC →
+                  Dhan).
+                </p>
               </div>
             )}
 

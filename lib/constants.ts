@@ -8,6 +8,7 @@ export const ACCOUNT_TYPES = [
   { value: "current", label: "Current" },
   { value: "cash_wallet", label: "Cash Wallet" },
   { value: "upi_wallet", label: "UPI Wallet" },
+  { value: "broker_wallet", label: "Stock Broker Wallet" },
 ] as const;
 
 export const INCOME_CATEGORIES = [
