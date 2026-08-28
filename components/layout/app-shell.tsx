@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
@@ -11,25 +12,24 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let profile: Profile | null = null;
-  let unreadCount = 0;
-
-  if (user) {
-    const [{ data: profileData }, { count }] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("id, email, full_name, avatar_url")
-        .eq("id", user.id)
-        .single(),
-      supabase
-        .from("notifications")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("is_read", false),
-    ]);
-    profile = profileData as Profile | null;
-    unreadCount = count ?? 0;
+  if (!user) {
+    redirect("/login");
   }
+
+  const [{ data: profileData }, { count }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, email, full_name, avatar_url")
+      .eq("id", user.id)
+      .single(),
+    supabase
+      .from("notifications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false),
+  ]);
+  const profile = profileData as Profile | null;
+  const unreadCount = count ?? 0;
 
   return (
     <div className="flex min-h-svh bg-background">
@@ -43,7 +43,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         </main>
         <MobileBottomNav />
       </div>
-      {user ? <InvestmentReminderHost /> : null}
+      <InvestmentReminderHost />
     </div>
   );
 }
