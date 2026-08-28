@@ -89,7 +89,8 @@ export type InvestmentFormValues = z.infer<typeof investmentSchema>;
 export const contributionSchema = z
   .object({
     date: dateStringSchema,
-    amount: positiveMoneySchema,
+    /** Purchase amount — optional if units × price are set. */
+    amount: nonNegativeMoneySchema,
     units: z.preprocess(
       (v) => (v === "" || v == null ? 0 : v),
       z.coerce
@@ -105,6 +106,22 @@ export const contributionSchema = z
     debit_account: z.boolean().default(true),
   })
   .superRefine((data, ctx) => {
+    const amount = Number(data.amount) || 0;
+    const units = Number(data.units) || 0;
+    const price = Number(data.price) || 0;
+    const resolved =
+      amount > 0
+        ? amount
+        : units > 0 && price > 0
+          ? Math.round(units * price * 100) / 100
+          : 0;
+    if (resolved <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter amount, or units with price / NAV",
+        path: ["amount"],
+      });
+    }
     if (data.debit_account !== false && !data.account_id) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -115,6 +132,71 @@ export const contributionSchema = z
   });
 
 export type ContributionFormValues = z.infer<typeof contributionSchema>;
+
+/** Partial or full redemption / sell of units (stocks, ETF, MF, crypto). */
+export const withdrawalSchema = z
+  .object({
+    date: dateStringSchema,
+    units: z.preprocess(
+      (v) => (v === "" || v == null ? 0 : v),
+      z.coerce
+        .number({ invalid_type_error: "Enter valid units" })
+        .min(0, "Units cannot be negative")
+    ),
+    /** Sale proceeds — optional if units × price are set. */
+    amount: nonNegativeMoneySchema,
+    price: nonNegativeMoneySchema,
+    notes: optionalNullableString,
+    account_id: z
+      .union([z.string().uuid(), z.literal(""), z.null()])
+      .optional()
+      .transform((v) => (v == null || v === "" ? null : v)),
+    /** Credit sale proceeds to funding account. */
+    credit_account: z.boolean().default(true),
+    /** Deactivate holding when units reach zero. */
+    close_if_empty: z.boolean().default(true),
+  })
+  .superRefine((data, ctx) => {
+    const amount = Number(data.amount) || 0;
+    const units = Number(data.units) || 0;
+    const price = Number(data.price) || 0;
+    const hasUnits = units > 0;
+    const hasProceeds =
+      amount > 0 || (units > 0 && price > 0);
+    if (!hasUnits && !(amount > 0 && price > 0)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter units to sell, or amount with sale price / NAV",
+        path: ["units"],
+      });
+    }
+    if (!hasProceeds && !hasUnits) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter sale amount or price",
+        path: ["amount"],
+      });
+    }
+    if (data.credit_account !== false && !data.account_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Select the account to receive proceeds",
+        path: ["account_id"],
+      });
+    }
+  });
+
+export type WithdrawalFormValues = z.infer<typeof withdrawalSchema>;
+
+/** Types that support unit buys / partial sells. */
+export function supportsUnitTrades(type: (typeof INVESTMENT_TYPES)[number]["value"]) {
+  return (
+    type === "stocks" ||
+    type === "etf" ||
+    type === "mutual_funds" ||
+    type === "crypto"
+  );
+}
 
 export const tradingPnlSchema = z.object({
   account_id: z.string().uuid("Select a broker wallet"),
@@ -162,4 +244,27 @@ export function resolveInvestmentAmounts(
       : 0;
 
   return { invested_amount, current_value, gain, gain_percent };
+}
+
+/** Resolve buy/sell cash amount and units from form fields. */
+export function resolveTradeAmounts(values: {
+  amount?: number | null;
+  units?: number | null;
+  price?: number | null;
+}) {
+  let amount = Number(values.amount) || 0;
+  let units = Number(values.units) || 0;
+  let price = Number(values.price) || 0;
+
+  if (units <= 0 && amount > 0 && price > 0) {
+    units = Math.round((amount / price) * 1e6) / 1e6;
+  }
+  if (price <= 0 && units > 0 && amount > 0) {
+    price = Math.round((amount / units) * 10000) / 10000;
+  }
+  if (amount <= 0 && units > 0 && price > 0) {
+    amount = Math.round(units * price * 100) / 100;
+  }
+
+  return { amount, units, price };
 }

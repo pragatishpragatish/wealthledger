@@ -7,7 +7,10 @@ import {
   contributionSchema,
   investmentSchema,
   resolveInvestmentAmounts,
+  resolveTradeAmounts,
+  supportsUnitTrades,
   tradingPnlSchema,
+  withdrawalSchema,
 } from "@/features/investments/schemas";
 import { investmentFundingKind } from "@/features/investments/funding";
 import { updateInvestmentPrices } from "@/lib/market-data/update-prices";
@@ -177,6 +180,72 @@ async function debitFundingAccount(
   return txError?.message ?? null;
 }
 
+/** Credit broker wallet / bank with sale / redemption proceeds. */
+async function creditFundingAccount(
+  supabase: SupabaseClient,
+  userId: string,
+  opts: {
+    accountId: string;
+    amount: number;
+    date: string;
+    investmentType: InvestmentType;
+    label: string;
+    notes?: string | null;
+  }
+): Promise<string | null> {
+  const kind = investmentFundingKind(opts.investmentType);
+  const { data: account, error } = await supabase
+    .from("accounts")
+    .select("id, name, bank_name, current_balance, account_type")
+    .eq("id", opts.accountId)
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) return error.message;
+  if (!account) return "Receiving account not found";
+
+  const isBroker = account.account_type === "broker_wallet";
+  if (kind === "broker" && !isBroker) {
+    return "Stock / ETF proceeds must go to a stock broker wallet";
+  }
+  if (kind === "bank" && isBroker) {
+    return "Mutual fund redemptions must credit a bank account (not a broker wallet)";
+  }
+
+  const balance = Number(account.current_balance);
+  const next = Math.round((balance + opts.amount) * 100) / 100;
+  const { error: balError } = await supabase
+    .from("accounts")
+    .update({ current_balance: next })
+    .eq("id", account.id)
+    .eq("user_id", userId);
+  if (balError) return balError.message;
+
+  const categoryId = await findCategoryId(
+    supabase,
+    userId,
+    "income",
+    "Stock Returns"
+  );
+
+  const { error: txError } = await supabase.from("transactions").insert({
+    user_id: userId,
+    type: "income",
+    date: opts.date,
+    amount: opts.amount,
+    account_id: account.id,
+    category_id: categoryId,
+    merchant: opts.label,
+    notes:
+      opts.notes ??
+      `Investment sale · ${isBroker ? "Broker wallet" : "Bank"} credit`,
+    payment_method: isBroker ? "other" : "netbanking",
+  });
+
+  return txError?.message ?? null;
+}
+
 export async function createInvestment(
   input: unknown
 ): Promise<InvestmentActionResult> {
@@ -305,15 +374,9 @@ export async function addInvestmentContribution(
   if (fetchError) return { error: fetchError.message };
   if (!inv) return { error: "Investment not found" };
 
-  const amount = Number(values.amount);
-  let addUnits = Number(values.units) || 0;
-  let price = Number(values.price) || 0;
-
-  if (addUnits <= 0 && price > 0) {
-    addUnits = Math.round((amount / price) * 1e6) / 1e6;
-  }
-  if (price <= 0 && addUnits > 0) {
-    price = Math.round((amount / addUnits) * 10000) / 10000;
+  const { amount, units: addUnits, price } = resolveTradeAmounts(values);
+  if (amount <= 0) {
+    return { error: "Enter amount, or units with price / NAV" };
   }
 
   const shouldDebit = values.debit_account !== false && Boolean(values.account_id);
@@ -369,6 +432,152 @@ export async function addInvestmentContribution(
       units: newUnits,
       buy_price: newBuyPrice,
       current_price: newCurrentPrice,
+    })
+    .eq("id", investmentId)
+    .eq("user_id", user.id);
+
+  if (updateError) return { error: updateError.message };
+
+  revalidateInvestmentPaths();
+  return { success: true };
+}
+
+/**
+ * Sell / redeem units (partial or full) from a stock, ETF, MF, or crypto holding.
+ */
+export async function sellInvestmentUnits(
+  investmentId: string,
+  input: unknown
+): Promise<InvestmentActionResult> {
+  if (!investmentId) return { error: "Investment id is required" };
+
+  const parsed = withdrawalSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message ?? "Invalid input" };
+  }
+
+  const { supabase, user } = await requireUser();
+  const values = parsed.data;
+
+  const { data: inv, error: fetchError } = await supabase
+    .from("investments")
+    .select(
+      "id, name, type, invested_amount, current_value, units, buy_price, current_price, is_active"
+    )
+    .eq("id", investmentId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (fetchError) return { error: fetchError.message };
+  if (!inv) return { error: "Investment not found" };
+
+  const invType = inv.type as InvestmentType;
+  if (!supportsUnitTrades(invType)) {
+    return {
+      error:
+        "Withdrawals with units are supported for stocks, ETFs, mutual funds, and crypto",
+    };
+  }
+
+  const prevUnits = Number(inv.units) || 0;
+  const prevInvested = Number(inv.invested_amount) || 0;
+  const prevBuy = Number(inv.buy_price) || 0;
+  const prevPrice = Number(inv.current_price) || 0;
+
+  let { amount: proceeds, units: sellUnits, price: sellPrice } =
+    resolveTradeAmounts(values);
+
+  // Prefer explicit units; if only amount+price, resolveTradeAmounts already set units
+  if (sellUnits <= 0 && proceeds > 0 && prevPrice > 0 && sellPrice <= 0) {
+    sellPrice = prevPrice;
+    sellUnits = Math.round((proceeds / sellPrice) * 1e6) / 1e6;
+  }
+  if (sellPrice <= 0 && prevPrice > 0) {
+    sellPrice = prevPrice;
+  }
+  if (proceeds <= 0 && sellUnits > 0 && sellPrice > 0) {
+    proceeds = Math.round(sellUnits * sellPrice * 100) / 100;
+  }
+
+  if (sellUnits <= 0) {
+    return { error: "Enter how many units to sell or redeem" };
+  }
+  if (sellUnits > prevUnits + 1e-9) {
+    return {
+      error: `Cannot sell ${sellUnits} units — only ${prevUnits} available`,
+    };
+  }
+  if (proceeds <= 0) {
+    return { error: "Enter sale amount or price / NAV" };
+  }
+
+  // Cap tiny float overshoot
+  if (Math.abs(sellUnits - prevUnits) < 1e-8) {
+    sellUnits = prevUnits;
+  }
+
+  const avgCost =
+    prevUnits > 0
+      ? prevInvested / prevUnits
+      : prevBuy > 0
+        ? prevBuy
+        : 0;
+  const costSold = Math.round(sellUnits * avgCost * 100) / 100;
+
+  const newUnits = Math.round((prevUnits - sellUnits) * 1e6) / 1e6;
+  const newInvested =
+    newUnits <= 0
+      ? 0
+      : Math.max(0, Math.round((prevInvested - costSold) * 100) / 100);
+  const newCurrentPrice = sellPrice > 0 ? sellPrice : prevPrice;
+  const newValue =
+    newUnits <= 0
+      ? 0
+      : Math.round(newUnits * newCurrentPrice * 100) / 100;
+  const newBuyPrice =
+    newUnits > 0
+      ? Math.round((newInvested / newUnits) * 10000) / 10000
+      : prevBuy;
+
+  const shouldCredit =
+    values.credit_account !== false && Boolean(values.account_id);
+  if (shouldCredit && values.account_id) {
+    const creditError = await creditFundingAccount(supabase, user.id, {
+      accountId: values.account_id,
+      amount: proceeds,
+      date: values.date,
+      investmentType: invType,
+      label: `Redeem · ${inv.name}`,
+      notes: values.notes,
+    });
+    if (creditError) return { error: creditError };
+  }
+
+  const { error: txError } = await supabase
+    .from("investment_transactions")
+    .insert({
+      user_id: user.id,
+      investment_id: investmentId,
+      date: values.date,
+      type: "sell",
+      units: sellUnits,
+      price: sellPrice,
+      amount: proceeds,
+      notes: values.notes ?? "Withdrawal / redemption",
+    });
+
+  if (txError) return { error: txError.message };
+
+  const close = values.close_if_empty !== false && newUnits <= 1e-9;
+  const { error: updateError } = await supabase
+    .from("investments")
+    .update({
+      invested_amount: newInvested,
+      current_value: newValue,
+      units: close ? 0 : newUnits,
+      buy_price: newBuyPrice,
+      current_price: newCurrentPrice,
+      ...(close ? { is_active: false } : {}),
     })
     .eq("id", investmentId)
     .eq("user_id", user.id);

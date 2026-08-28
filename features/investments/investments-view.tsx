@@ -6,6 +6,7 @@ import {
   CandlestickChart,
   History,
   LineChart,
+  MinusCircle,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -46,6 +47,7 @@ import {
 import { InvestmentForm } from "@/features/investments/investment-form";
 import { ContributionForm } from "@/features/investments/contribution-form";
 import { ContributionHistoryDialog } from "@/features/investments/contribution-history-dialog";
+import { WithdrawalForm } from "@/features/investments/withdrawal-form";
 import {
   summarizeInvestments,
   type InvestmentComputed,
@@ -53,6 +55,7 @@ import {
 import type { InvestmentsPageDataWithAccounts } from "@/features/investments/queries";
 import { TradingPnlDialog } from "@/features/investments/trading-pnl-dialog";
 import { canAutoPrice } from "@/lib/market-data/update-prices";
+import { supportsUnitTrades } from "@/features/investments/schemas";
 
 const typeLabel = Object.fromEntries(
   INVESTMENT_TYPES.map((t) => [t.value, t.label])
@@ -127,6 +130,9 @@ export function InvestmentsView({
   const [tradingOpen, setTradingOpen] = useState(false);
   const [editing, setEditing] = useState<InvestmentComputed | null>(null);
   const [contributing, setContributing] = useState<InvestmentComputed | null>(
+    null
+  );
+  const [withdrawing, setWithdrawing] = useState<InvestmentComputed | null>(
     null
   );
   const [historyFor, setHistoryFor] = useState<InvestmentComputed | null>(null);
@@ -504,11 +510,21 @@ export function InvestmentsView({
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => setContributing(inv)}>
                           <Plus className="size-4" />
-                          Add money
+                          {supportsUnitTrades(inv.type)
+                            ? "Buy more"
+                            : "Add money"}
                         </DropdownMenuItem>
+                        {supportsUnitTrades(inv.type) ? (
+                          <DropdownMenuItem
+                            onClick={() => setWithdrawing(inv)}
+                          >
+                            <MinusCircle className="size-4" />
+                            Withdraw
+                          </DropdownMenuItem>
+                        ) : null}
                         <DropdownMenuItem onClick={() => setHistoryFor(inv)}>
                           <History className="size-4" />
-                          View entries
+                          View activity
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openEdit(inv)}>
                           <Pencil className="size-4" />
@@ -560,7 +576,8 @@ export function InvestmentsView({
                   </div>
                   {latest && (
                     <p className="mt-2 text-xs text-muted-foreground">
-                      Last +{formatINR(latest.amount)} ·{" "}
+                      Last {latest.type === "sell" ? "−" : "+"}
+                      {formatINR(latest.amount)} ·{" "}
                       {formatDisplayDate(latest.date)}
                     </p>
                   )}
@@ -641,7 +658,8 @@ export function InvestmentsView({
                           )}
                           {latest && (
                             <div>
-                              Last +{formatINR(latest.amount)} ·{" "}
+                              Last {latest.type === "sell" ? "−" : "+"}
+                              {formatINR(latest.amount)} ·{" "}
                               {formatDisplayDate(latest.date)}
                             </div>
                           )}
@@ -675,13 +693,23 @@ export function InvestmentsView({
                                 onClick={() => setContributing(inv)}
                               >
                                 <Plus className="size-4" />
-                                Add money
+                                {supportsUnitTrades(inv.type)
+                                  ? "Buy more"
+                                  : "Add money"}
                               </DropdownMenuItem>
+                              {supportsUnitTrades(inv.type) ? (
+                                <DropdownMenuItem
+                                  onClick={() => setWithdrawing(inv)}
+                                >
+                                  <MinusCircle className="size-4" />
+                                  Withdraw
+                                </DropdownMenuItem>
+                              ) : null}
                               <DropdownMenuItem
                                 onClick={() => setHistoryFor(inv)}
                               >
                                 <History className="size-4" />
-                                View entries
+                                View activity
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEdit(inv)}>
                                 <Pencil className="size-4" />
@@ -720,6 +748,15 @@ export function InvestmentsView({
           if (!open) setContributing(null);
         }}
         investment={contributing}
+        accounts={accounts}
+      />
+
+      <WithdrawalForm
+        open={Boolean(withdrawing)}
+        onOpenChange={(open) => {
+          if (!open) setWithdrawing(null);
+        }}
+        investment={withdrawing}
         accounts={accounts}
       />
 

@@ -90,7 +90,7 @@ export async function getInvestments(opts?: {
       .select("id, investment_id, date, type, units, price, amount, notes")
       .eq("user_id", user.id)
       .in("investment_id", ids)
-      .in("type", ["buy", "sip"])
+      .in("type", ["buy", "sip", "sell"])
       .order("date", { ascending: false });
 
     if (txError) throw new Error(txError.message);

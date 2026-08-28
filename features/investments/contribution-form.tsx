@@ -29,6 +29,8 @@ import { toDateString } from "@/utils/date";
 import { formatINR } from "@/utils/currency";
 import {
   contributionSchema,
+  resolveTradeAmounts,
+  supportsUnitTrades,
   type ContributionFormValues,
 } from "@/features/investments/schemas";
 import { addInvestmentContribution } from "@/features/investments/actions";
@@ -62,6 +64,9 @@ export function ContributionForm({
     () => filterFundingAccounts(accounts, fundingKind),
     [accounts, fundingKind]
   );
+  const unitTrades = investment
+    ? supportsUnitTrades(investment.type)
+    : false;
 
   const form = useForm<
     z.input<typeof contributionSchema>,
@@ -81,6 +86,19 @@ export function ContributionForm({
   });
 
   const debitAccount = useWatch({ control: form.control, name: "debit_account" });
+  const watchedUnits = useWatch({ control: form.control, name: "units" });
+  const watchedPrice = useWatch({ control: form.control, name: "price" });
+  const watchedAmount = useWatch({ control: form.control, name: "amount" });
+
+  const preview = useMemo(
+    () =>
+      resolveTradeAmounts({
+        amount: Number(watchedAmount) || 0,
+        units: Number(watchedUnits) || 0,
+        price: Number(watchedPrice) || 0,
+      }),
+    [watchedAmount, watchedUnits, watchedPrice]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -95,12 +113,12 @@ export function ContributionForm({
       date: toDateString(new Date()),
       amount: undefined,
       units: undefined,
-      price: undefined,
+      price: investment?.current_price || undefined,
       notes: null,
       account_id: matched?.id ?? fundingAccounts[0]?.id ?? null,
       debit_account: true,
     });
-  }, [open, form, fundingAccounts, fundingKind, investment?.platform]);
+  }, [open, form, fundingAccounts, fundingKind, investment?.platform, investment?.current_price]);
 
   function onSubmit(values: ContributionFormValues) {
     if (!investment) return;
@@ -110,7 +128,12 @@ export function ContributionForm({
         toast.error(result.error);
         return;
       }
-      toast.success(`Added ${formatINR(values.amount)} to ${investment.name}`);
+      const trade = resolveTradeAmounts(values);
+      toast.success(
+        trade.units > 0
+          ? `Added ${trade.units} units · ${formatINR(trade.amount)} to ${investment.name}`
+          : `Added ${formatINR(trade.amount)} to ${investment.name}`
+      );
       onOpenChange(false);
     });
   }
@@ -119,10 +142,14 @@ export function ContributionForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md" showCloseButton>
         <DialogHeader>
-          <DialogTitle>Add to {investment?.name ?? "investment"}</DialogTitle>
+          <DialogTitle>
+            {unitTrades ? "Buy more · " : "Add to "}
+            {investment?.name ?? "investment"}
+          </DialogTitle>
           <DialogDescription>
-            Log another purchase into the same fund. Each entry keeps its own
-            date so you can track top-ups over time.
+            {unitTrades
+              ? "Add units at today’s price / NAV. Average cost updates automatically."
+              : "Log another purchase into the same holding. Each entry keeps its own date."}
           </DialogDescription>
         </DialogHeader>
 
@@ -131,6 +158,19 @@ export function ContributionForm({
           className="grid gap-4 py-1"
           autoComplete="off"
         >
+          {investment && unitTrades ? (
+            <p className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              Current{" "}
+              <span className="font-medium text-foreground tabular-nums">
+                {investment.units}
+              </span>{" "}
+              units · avg{" "}
+              <span className="font-medium text-foreground tabular-nums">
+                {formatINR(investment.buy_price, { precise: true })}
+              </span>
+            </p>
+          ) : null}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="contrib-date">Date</Label>
@@ -147,7 +187,9 @@ export function ContributionForm({
                 type="number"
                 step="0.01"
                 min="0"
-                placeholder="e.g. 5000"
+                placeholder={
+                  unitTrades ? "Or leave blank if units × price" : "e.g. 5000"
+                }
                 {...form.register("amount")}
               />
               {form.formState.errors.amount && (
@@ -157,6 +199,46 @@ export function ContributionForm({
               )}
             </div>
           </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="contrib-units">
+                {unitTrades ? "Units bought" : "Units (optional)"}
+              </Label>
+              <Input
+                id="contrib-units"
+                type="number"
+                step="any"
+                min="0"
+                placeholder={unitTrades ? "e.g. 12.5" : undefined}
+                {...form.register("units")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contrib-price">
+                {unitTrades ? "Price / NAV" : "Price / NAV (optional)"}
+              </Label>
+              <Input
+                id="contrib-price"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Per unit"
+                {...form.register("price")}
+              />
+            </div>
+          </div>
+
+          {preview.amount > 0 && (preview.units > 0 || preview.price > 0) ? (
+            <p className="text-xs text-muted-foreground">
+              {preview.units > 0
+                ? `Adds ${preview.units} units for ${formatINR(preview.amount)}`
+                : `Adds ${formatINR(preview.amount)}`}
+              {preview.price > 0
+                ? ` @ ${formatINR(preview.price, { precise: true })}`
+                : ""}
+            </p>
+          ) : null}
 
           <div className="space-y-3 rounded-xl border border-border/60 bg-muted/20 p-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
@@ -228,29 +310,6 @@ export function ContributionForm({
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="contrib-units">Units (optional)</Label>
-              <Input
-                id="contrib-units"
-                type="number"
-                step="any"
-                min="0"
-                {...form.register("units")}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contrib-price">Price / NAV (optional)</Label>
-              <Input
-                id="contrib-price"
-                type="number"
-                step="0.01"
-                min="0"
-                {...form.register("price")}
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="contrib-notes">Notes</Label>
             <Textarea
@@ -271,7 +330,7 @@ export function ContributionForm({
             </Button>
             <Button type="submit" disabled={pending || !investment}>
               {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-              Add money
+              {unitTrades ? "Buy units" : "Add money"}
             </Button>
           </DialogFooter>
         </form>
