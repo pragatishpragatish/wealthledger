@@ -573,13 +573,20 @@ export function TransactionsView({
                                 : "Transaction")}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {tx.category?.name
-                            ? tx.category.name
-                            : tx.notes || "—"}
-                          {tx.tags && tx.tags.length > 0
-                            ? ` · ${tx.tags.map((t) => t.name).join(", ")}`
-                            : ""}
+                          {[
+                            tx.category?.name,
+                            tx.tags && tx.tags.length > 0
+                              ? tx.tags.map((t) => t.name).join(", ")
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || "—"}
                         </p>
+                        {tx.notes ? (
+                          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                            {tx.notes}
+                          </p>
+                        ) : null}
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
