@@ -35,6 +35,8 @@ import { toDateString } from "@/utils/date";
 import { formatINR, formatPercent } from "@/utils/currency";
 import {
   investmentSchema,
+  investmentNavStep,
+  investmentUnitsStep,
   resolveInvestmentAmounts,
   type InvestmentFormValues,
 } from "@/features/investments/schemas";
@@ -544,8 +546,11 @@ export function InvestmentForm({
                   <Input
                     id="inv-units"
                     type="number"
-                    step="any"
+                    step={investmentUnitsStep(type)}
                     min="0"
+                    placeholder={
+                      type === "mutual_funds" ? "e.g. 12.3456" : undefined
+                    }
                     {...form.register("units")}
                   />
                 </div>
@@ -556,7 +561,7 @@ export function InvestmentForm({
                   <Input
                     id="inv-buy"
                     type="number"
-                    step="0.01"
+                    step={investmentNavStep(type)}
                     min="0"
                     {...form.register("buy_price")}
                   />
@@ -568,7 +573,7 @@ export function InvestmentForm({
                   <Input
                     id="inv-nav"
                     type="number"
-                    step="0.01"
+                    step={investmentNavStep(type)}
                     min="0"
                     {...form.register("current_price")}
                   />

@@ -54,6 +54,7 @@ import {
 } from "@/features/investments/summary";
 import type { InvestmentsPageDataWithAccounts } from "@/features/investments/queries";
 import { TradingPnlDialog } from "@/features/investments/trading-pnl-dialog";
+import { BrokerChargesDialog } from "@/features/accounts/broker-charges-dialog";
 import { canAutoPrice } from "@/lib/market-data/update-prices";
 import { supportsUnitTrades } from "@/features/investments/schemas";
 
@@ -128,6 +129,7 @@ export function InvestmentsView({
 
   const [formOpen, setFormOpen] = useState(false);
   const [tradingOpen, setTradingOpen] = useState(false);
+  const [chargesOpen, setChargesOpen] = useState(false);
   const [editing, setEditing] = useState<InvestmentComputed | null>(null);
   const [contributing, setContributing] = useState<InvestmentComputed | null>(
     null
@@ -151,6 +153,11 @@ export function InvestmentsView({
   const canRefreshPrices = useMemo(
     () => allInvestments.some((i) => canAutoPrice(i.type)),
     [allInvestments]
+  );
+
+  const hasBrokerWallets = useMemo(
+    () => accounts.some((a) => a.account_type === "broker_wallet"),
+    [accounts]
   );
 
   const brokerOptions = useMemo(() => {
@@ -257,6 +264,12 @@ export function InvestmentsView({
                   className={cn("size-4", refreshing && "animate-spin")}
                 />
                 Refresh prices
+              </Button>
+            ) : null}
+            {hasBrokerWallets ? (
+              <Button variant="outline" onClick={() => setChargesOpen(true)}>
+                <MinusCircle className="size-4" />
+                Brokerage &amp; charges
               </Button>
             ) : null}
             <Button variant="outline" onClick={() => setTradingOpen(true)}>
@@ -763,6 +776,12 @@ export function InvestmentsView({
       <TradingPnlDialog
         open={tradingOpen}
         onOpenChange={setTradingOpen}
+        accounts={accounts}
+      />
+
+      <BrokerChargesDialog
+        open={chargesOpen}
+        onOpenChange={setChargesOpen}
         accounts={accounts}
       />
 

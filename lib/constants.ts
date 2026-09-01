@@ -40,6 +40,7 @@ export const EXPENSE_CATEGORIES = [
   "Insurance",
   "EMI",
   "Investment",
+  "Brokerage & Charges",
   "Rent",
   "Tax",
   "Misc",

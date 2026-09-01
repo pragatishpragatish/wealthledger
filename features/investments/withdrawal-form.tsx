@@ -30,6 +30,8 @@ import { formatINR } from "@/utils/currency";
 import {
   resolveTradeAmounts,
   supportsUnitTrades,
+  investmentNavStep,
+  investmentUnitsStep,
   withdrawalSchema,
   type WithdrawalFormValues,
 } from "@/features/investments/schemas";
@@ -93,12 +95,15 @@ export function WithdrawalForm({
 
   const preview = useMemo(
     () =>
-      resolveTradeAmounts({
-        amount: Number(watchedAmount) || 0,
-        units: Number(watchedUnits) || 0,
-        price: Number(watchedPrice) || 0,
-      }),
-    [watchedAmount, watchedUnits, watchedPrice]
+      resolveTradeAmounts(
+        {
+          amount: Number(watchedAmount) || 0,
+          units: Number(watchedUnits) || 0,
+          price: Number(watchedPrice) || 0,
+        },
+        investment?.type
+      ),
+    [watchedAmount, watchedUnits, watchedPrice, investment?.type]
   );
 
   useEffect(() => {
@@ -139,7 +144,7 @@ export function WithdrawalForm({
         toast.error(result.error);
         return;
       }
-      const trade = resolveTradeAmounts(values);
+      const trade = resolveTradeAmounts(values, investment.type);
       toast.success(
         `Sold ${trade.units} units · ${formatINR(trade.amount)} from ${investment.name}`
       );
@@ -209,10 +214,14 @@ export function WithdrawalForm({
                 <Input
                   id="wd-units"
                   type="number"
-                  step="any"
+                  step={investmentUnitsStep(investment?.type ?? "mutual_funds")}
                   min="0"
                   max={investment?.units}
-                  placeholder="e.g. 10"
+                  placeholder={
+                    investment?.type === "mutual_funds"
+                      ? "e.g. 12.3456"
+                      : "e.g. 10"
+                  }
                   {...form.register("units")}
                 />
                 {form.formState.errors.units && (
@@ -229,7 +238,7 @@ export function WithdrawalForm({
                 <Input
                   id="wd-price"
                   type="number"
-                  step="0.01"
+                  step={investmentNavStep(investment?.type ?? "mutual_funds")}
                   min="0"
                   placeholder="Per unit"
                   {...form.register("price")}

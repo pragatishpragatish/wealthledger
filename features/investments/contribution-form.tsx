@@ -29,6 +29,8 @@ import { toDateString } from "@/utils/date";
 import { formatINR } from "@/utils/currency";
 import {
   contributionSchema,
+  investmentNavStep,
+  investmentUnitsStep,
   resolveTradeAmounts,
   supportsUnitTrades,
   type ContributionFormValues,
@@ -92,12 +94,15 @@ export function ContributionForm({
 
   const preview = useMemo(
     () =>
-      resolveTradeAmounts({
-        amount: Number(watchedAmount) || 0,
-        units: Number(watchedUnits) || 0,
-        price: Number(watchedPrice) || 0,
-      }),
-    [watchedAmount, watchedUnits, watchedPrice]
+      resolveTradeAmounts(
+        {
+          amount: Number(watchedAmount) || 0,
+          units: Number(watchedUnits) || 0,
+          price: Number(watchedPrice) || 0,
+        },
+        investment?.type
+      ),
+    [watchedAmount, watchedUnits, watchedPrice, investment?.type]
   );
 
   useEffect(() => {
@@ -128,7 +133,7 @@ export function ContributionForm({
         toast.error(result.error);
         return;
       }
-      const trade = resolveTradeAmounts(values);
+      const trade = resolveTradeAmounts(values, investment.type);
       toast.success(
         trade.units > 0
           ? `Added ${trade.units} units · ${formatINR(trade.amount)} to ${investment.name}`
@@ -208,9 +213,11 @@ export function ContributionForm({
               <Input
                 id="contrib-units"
                 type="number"
-                step="any"
+                step={investmentUnitsStep(investment?.type ?? "mutual_funds")}
                 min="0"
-                placeholder={unitTrades ? "e.g. 12.5" : undefined}
+                placeholder={
+                  investment?.type === "mutual_funds" ? "e.g. 12.3456" : "e.g. 12.5"
+                }
                 {...form.register("units")}
               />
             </div>
@@ -221,7 +228,7 @@ export function ContributionForm({
               <Input
                 id="contrib-price"
                 type="number"
-                step="0.01"
+                step={investmentNavStep(investment?.type ?? "mutual_funds")}
                 min="0"
                 placeholder="Per unit"
                 {...form.register("price")}

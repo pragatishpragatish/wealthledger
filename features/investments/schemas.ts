@@ -198,6 +198,29 @@ export function supportsUnitTrades(type: (typeof INVESTMENT_TYPES)[number]["valu
   );
 }
 
+export const MF_UNITS_DECIMALS = 4;
+
+export function investmentUnitsStep(
+  type: (typeof INVESTMENT_TYPES)[number]["value"]
+): string {
+  return type === "mutual_funds" ? "0.0001" : "any";
+}
+
+export function investmentNavStep(
+  type: (typeof INVESTMENT_TYPES)[number]["value"]
+): string {
+  return type === "mutual_funds" ? "0.0001" : "0.01";
+}
+
+export function roundUnits(
+  units: number,
+  type?: (typeof INVESTMENT_TYPES)[number]["value"]
+): number {
+  const places = type === "mutual_funds" ? MF_UNITS_DECIMALS : 6;
+  const factor = 10 ** places;
+  return Math.round(units * factor) / factor;
+}
+
 export const tradingPnlSchema = z.object({
   account_id: z.string().uuid("Select a broker wallet"),
   activity: z.enum(["fno", "intraday", "other"]),
@@ -247,17 +270,20 @@ export function resolveInvestmentAmounts(
 }
 
 /** Resolve buy/sell cash amount and units from form fields. */
-export function resolveTradeAmounts(values: {
-  amount?: number | null;
-  units?: number | null;
-  price?: number | null;
-}) {
+export function resolveTradeAmounts(
+  values: {
+    amount?: number | null;
+    units?: number | null;
+    price?: number | null;
+  },
+  type?: (typeof INVESTMENT_TYPES)[number]["value"]
+) {
   let amount = Number(values.amount) || 0;
   let units = Number(values.units) || 0;
   let price = Number(values.price) || 0;
 
   if (units <= 0 && amount > 0 && price > 0) {
-    units = Math.round((amount / price) * 1e6) / 1e6;
+    units = roundUnits(amount / price, type);
   }
   if (price <= 0 && units > 0 && amount > 0) {
     price = Math.round((amount / units) * 10000) / 10000;
@@ -265,6 +291,8 @@ export function resolveTradeAmounts(values: {
   if (amount <= 0 && units > 0 && price > 0) {
     amount = Math.round(units * price * 100) / 100;
   }
+
+  units = roundUnits(units, type);
 
   return { amount, units, price };
 }

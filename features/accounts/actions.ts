@@ -1,8 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/auth";
-import { accountSchema } from "@/features/accounts/schemas";
+import {
+  accountSchema,
+  brokerChargesSchema,
+} from "@/features/accounts/schemas";
 import { INVESTMENT_PLATFORMS } from "@/lib/constants";
 import { emptyToNull } from "@/lib/validations/common";
 import { toDateString } from "@/utils/date";
@@ -13,10 +17,30 @@ export type AccountActionResult = {
   created?: number;
 };
 
+const BROKERAGE_CATEGORY = "Brokerage & Charges";
+
 function revalidateAccountPaths() {
   revalidatePath("/accounts");
   revalidatePath("/");
   revalidatePath("/transactions");
+  revalidatePath("/expenses");
+  revalidatePath("/dashboard");
+}
+
+async function findCategoryId(
+  supabase: SupabaseClient,
+  userId: string,
+  kind: "income" | "expense",
+  name: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("kind", kind)
+    .eq("name", name)
+    .maybeSingle();
+  return data?.id ?? null;
 }
 
 export async function createAccount(
@@ -152,6 +176,72 @@ export async function createMissingBrokerWallets(): Promise<AccountActionResult>
 
   revalidateAccountPaths();
   return { success: true, created: rows.length };
+}
+
+/** Deduct lump-sum brokerage / demat charges from a broker wallet. */
+export async function recordBrokerCharges(
+  input: unknown
+): Promise<AccountActionResult> {
+  const parsed = brokerChargesSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.errors[0]?.message ?? "Invalid input" };
+  }
+
+  const { supabase, user } = await requireUser();
+  const values = parsed.data;
+  const amount = Math.round(Number(values.amount) * 100) / 100;
+
+  const { data: account, error: accError } = await supabase
+    .from("accounts")
+    .select("id, name, bank_name, current_balance, account_type")
+    .eq("id", values.account_id)
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (accError) return { error: accError.message };
+  if (!account) return { error: "Broker wallet not found" };
+  if (account.account_type !== "broker_wallet") {
+    return { error: "Select a stock broker wallet for brokerage charges" };
+  }
+
+  const balance = Number(account.current_balance);
+  if (amount > balance + 0.001) {
+    return { error: "Charge exceeds broker wallet balance" };
+  }
+
+  const next = Math.round((balance - amount) * 100) / 100;
+  const { error: balError } = await supabase
+    .from("accounts")
+    .update({ current_balance: Math.max(0, next) })
+    .eq("id", account.id)
+    .eq("user_id", user.id);
+  if (balError) return { error: balError.message };
+
+  const categoryId = await findCategoryId(
+    supabase,
+    user.id,
+    "expense",
+    BROKERAGE_CATEGORY
+  );
+
+  const { error: txError } = await supabase.from("transactions").insert({
+    user_id: user.id,
+    type: "expense",
+    date: values.date,
+    amount,
+    account_id: account.id,
+    category_id: categoryId,
+    merchant: `Brokerage & charges · ${account.bank_name}`,
+    notes:
+      values.notes ??
+      `Brokerage and other charges · ${account.bank_name} wallet`,
+    payment_method: "other",
+  });
+  if (txError) return { error: txError.message };
+
+  revalidateAccountPaths();
+  return { success: true };
 }
 
 /** Soft-delete: sets is_active = false. Pass hard=true to permanently remove. */

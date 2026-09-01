@@ -8,6 +8,7 @@ import {
   investmentSchema,
   resolveInvestmentAmounts,
   resolveTradeAmounts,
+  roundUnits,
   supportsUnitTrades,
   tradingPnlSchema,
   withdrawalSchema,
@@ -55,7 +56,7 @@ function toInvestmentRow(
     platform: values.platform ?? null,
     symbol: normalizeSymbol(values.type, values.symbol),
     purchase_date: values.purchase_date,
-    units: values.units,
+    units: roundUnits(values.units, values.type),
     buy_price: values.buy_price,
     current_price: values.current_price,
     invested_amount: amounts.invested_amount,
@@ -374,7 +375,10 @@ export async function addInvestmentContribution(
   if (fetchError) return { error: fetchError.message };
   if (!inv) return { error: "Investment not found" };
 
-  const { amount, units: addUnits, price } = resolveTradeAmounts(values);
+  const { amount, units: addUnits, price } = resolveTradeAmounts(
+    values,
+    inv.type as InvestmentType
+  );
   if (amount <= 0) {
     return { error: "Enter amount, or units with price / NAV" };
   }
@@ -397,7 +401,7 @@ export async function addInvestmentContribution(
   const prevUnits = Number(inv.units) || 0;
 
   const newInvested = Math.round((prevInvested + amount) * 100) / 100;
-  const newUnits = Math.round((prevUnits + addUnits) * 1e6) / 1e6;
+  const newUnits = roundUnits(prevUnits + addUnits, inv.type as InvestmentType);
   const newValue =
     addUnits > 0 && price > 0
       ? Math.round((prevValue + addUnits * price) * 100) / 100
@@ -485,12 +489,12 @@ export async function sellInvestmentUnits(
   const prevPrice = Number(inv.current_price) || 0;
 
   let { amount: proceeds, units: sellUnits, price: sellPrice } =
-    resolveTradeAmounts(values);
+    resolveTradeAmounts(values, invType);
 
   // Prefer explicit units; if only amount+price, resolveTradeAmounts already set units
   if (sellUnits <= 0 && proceeds > 0 && prevPrice > 0 && sellPrice <= 0) {
     sellPrice = prevPrice;
-    sellUnits = Math.round((proceeds / sellPrice) * 1e6) / 1e6;
+    sellUnits = roundUnits(proceeds / sellPrice, invType);
   }
   if (sellPrice <= 0 && prevPrice > 0) {
     sellPrice = prevPrice;
@@ -524,7 +528,7 @@ export async function sellInvestmentUnits(
         : 0;
   const costSold = Math.round(sellUnits * avgCost * 100) / 100;
 
-  const newUnits = Math.round((prevUnits - sellUnits) * 1e6) / 1e6;
+  const newUnits = roundUnits(prevUnits - sellUnits, invType);
   const newInvested =
     newUnits <= 0
       ? 0

@@ -4,6 +4,8 @@ import {
   dateStringSchema,
   emptyToNull,
   nonNegativeMoneySchema,
+  optionalNullableString,
+  positiveMoneySchema,
 } from "@/lib/validations/common";
 
 const accountTypeValues = ACCOUNT_TYPES.map((t) => t.value) as [
@@ -33,3 +35,13 @@ export const accountSchema = z.object({
 export type AccountFormValues = z.infer<typeof accountSchema>;
 
 export const updateAccountSchema = accountSchema;
+
+/** Lump-sum brokerage / demat charges debited from a broker wallet. */
+export const brokerChargesSchema = z.object({
+  account_id: z.string().uuid("Select a broker wallet"),
+  amount: positiveMoneySchema,
+  date: dateStringSchema,
+  notes: optionalNullableString,
+});
+
+export type BrokerChargesFormValues = z.infer<typeof brokerChargesSchema>;

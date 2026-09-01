@@ -5,6 +5,7 @@ import {
   Building2,
   Landmark,
   LineChart,
+  MinusCircle,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -41,6 +42,7 @@ import {
   deleteAccount,
 } from "@/features/accounts/actions";
 import { AccountForm } from "@/features/accounts/account-form";
+import { BrokerChargesDialog } from "@/features/accounts/broker-charges-dialog";
 
 const typeLabel = Object.fromEntries(
   ACCOUNT_TYPES.map((t) => [t.value, t.label])
@@ -57,6 +59,8 @@ export function AccountsView({
   const [defaultBroker, setDefaultBroker] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
   const [deleting, setDeleting] = useState<Account | null>(null);
+  const [chargesOpen, setChargesOpen] = useState(false);
+  const [chargesAccount, setChargesAccount] = useState<Account | null>(null);
   const [pending, startTransition] = useTransition();
   const [brokerPending, startBrokerTransition] = useTransition();
 
@@ -99,6 +103,11 @@ export function AccountsView({
     });
   }
 
+  function openBrokerCharges(account?: Account) {
+    setChargesAccount(account ?? null);
+    setChargesOpen(true);
+  }
+
   function handleAddAllBrokers() {
     startBrokerTransition(async () => {
       const result = await createMissingBrokerWallets();
@@ -122,6 +131,12 @@ export function AccountsView({
         description="Banks, cash/UPI wallets, and stock broker wallet balances. Transfer between them anytime."
         action={
           <div className="flex flex-wrap gap-2">
+            {brokerAccounts.length > 0 ? (
+              <Button variant="outline" onClick={() => openBrokerCharges()}>
+                <MinusCircle className="size-4" />
+                Brokerage &amp; charges
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               onClick={handleAddAllBrokers}
@@ -258,6 +273,7 @@ export function AccountsView({
                 accounts={brokerAccounts}
                 onEdit={openEdit}
                 onDelete={setDeleting}
+                onRecordCharges={openBrokerCharges}
               />
             )}
           </div>
@@ -272,6 +288,16 @@ export function AccountsView({
         }}
         account={editing}
         defaultBroker={defaultBroker}
+      />
+
+      <BrokerChargesDialog
+        open={chargesOpen}
+        onOpenChange={(open) => {
+          setChargesOpen(open);
+          if (!open) setChargesAccount(null);
+        }}
+        accounts={accounts}
+        defaultAccountId={chargesAccount?.id}
       />
 
       <ConfirmDeleteDialog
@@ -298,11 +324,13 @@ function AccountTable({
   accounts,
   onEdit,
   onDelete,
+  onRecordCharges,
 }: {
   title?: string;
   accounts: Account[];
   onEdit: (account: Account) => void;
   onDelete: (account: Account) => void;
+  onRecordCharges?: (account: Account) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
@@ -367,6 +395,15 @@ function AccountTable({
                       <span className="sr-only">Actions</span>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      {onRecordCharges &&
+                      account.account_type === "broker_wallet" ? (
+                        <DropdownMenuItem
+                          onClick={() => onRecordCharges(account)}
+                        >
+                          <MinusCircle className="size-4" />
+                          Brokerage &amp; charges
+                        </DropdownMenuItem>
+                      ) : null}
                       <DropdownMenuItem onClick={() => onEdit(account)}>
                         <Pencil className="size-4" />
                         Edit
